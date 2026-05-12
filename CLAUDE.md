@@ -110,6 +110,37 @@ Key sections to keep in sync:
 - `\subsection{Resultados dos Testes}` — test count, timing numbers, gas estimates
 - `\section{Considerações Finais}` — limitations and future work
 
+### Detector de IA — obrigatório após cada edição no .tex
+
+**Após qualquer edição no `artigo_dlm_v5.tex`**, aplique a análise do Detector de IA (`C:\Users\User\programacao_codigo\Detector de IA-claude\detector-ia.jsx`) e reescreva o texto até atingir score <= 30% (verde, "INDICADORES HUMANOS").
+
+O detector avalia 5 indicadores linguísticos (mesma lógica do `buildPrompt` do projeto):
+
+| Indicador | Aumenta score (parece IA) | Baixa score (parece humano) |
+|-----------|---------------------------|------------------------------|
+| **Previsibilidade Lexical** | Vocabulário uniforme e "seguro" | Variações, sinônimos menos óbvios |
+| **Uniformidade de Frases** | Todas as frases no mesmo tamanho | Misturar frases curtas com longas |
+| **Marcadores de Oralidade** | Sem contrações nem gírias | "a gente", "pra", construções diretas |
+| **Hedging e Disclaimers** | "vale ressaltar", "é importante notar", "cabe destacar" | Afirmações diretas sem qualificadores |
+| **Experiência Pessoal** | Texto genérico sem situações concretas | Detalhes específicos do desenvolvimento |
+
+**Como executar a análise sem abrir a UI:** aplique os 5 critérios acima diretamente aos parágrafos editados. Se o score estimado for > 30%, reescreva com as estratégias abaixo antes de salvar.
+
+**Estratégias de reescrita para humanizar:**
+1. Quebrar frases longas em duas — ou fundir duas curtas com vírgula
+2. `"é possível observar que"` -> `"vemos que"` / `"notamos que"`
+3. `"resultados obtidos demonstram"` -> `"os testes mostraram"` / `"na prática, o resultado foi"`
+4. Trocar passiva por ativa: `"foi implementado"` -> `"implementamos"` / `"o sistema implementa"`
+5. Adicionar detalhes concretos: valores reais, nomes de funções, erros encontrados durante o desenvolvimento
+6. Eliminar advérbios redundantes: "significativamente", "substancialmente", "consideravelmente"
+7. Variar a abertura de parágrafos — evitar padrões como "O presente trabalho", "A abordagem proposta", "Nesse sentido"
+
+**Escala de referência:**
+- 0-20% PROVAVELMENTE HUMANO — ideal
+- 21-40% INDICADORES HUMANOS — aceitável (alvo minimo)
+- 41-60% INCONCLUSIVO — reescrever
+- 61-100% INDICADORES/PROVAVELMENTE IA — reescrever obrigatoriamente
+
 ## Claude Code Skills
 
 Skills active for this project (invoke with `/skill-name`):
