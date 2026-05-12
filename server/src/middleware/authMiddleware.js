@@ -13,7 +13,7 @@ import { ethers }  from "ethers";
 import jwt         from "jsonwebtoken";
 import crypto      from "crypto";
 
-// Cache em memória de desafios pendentes { address => { nonce, expiresAt } }
+// Cache em memória de desafios pendentes { address => { nonce, message, expiresAt } }
 const challengeCache = new Map();
 const CHALLENGE_TTL  = 5 * 60 * 1000; // 5 minutos
 
@@ -24,14 +24,15 @@ export function generateChallenge(address) {
   const nonce      = crypto.randomBytes(16).toString("hex");
   const expiresAt  = Date.now() + CHALLENGE_TTL;
 
-  challengeCache.set(normalized, { nonce, expiresAt });
-
   // Mensagem legível pelo usuário na carteira
   const message =
     `Bem-vindo ao DLM-PDF!\n\n` +
     `Assine para provar que você controla esta carteira.\n\n` +
     `Nonce: ${nonce}\n` +
     `Expira em: ${new Date(expiresAt).toISOString()}`;
+
+  // Armazena a mensagem completa para comparação exata na verificação
+  challengeCache.set(normalized, { nonce, message, expiresAt });
 
   return { message, nonce, expiresAt };
 }
@@ -47,7 +48,8 @@ export function verifySignature(address, message, signature) {
     challengeCache.delete(normalized);
     throw new Error("Desafio expirado. Solicite um novo.");
   }
-  if (!message.includes(cached.nonce)) {
+  // Comparação exata da mensagem — impede crafted messages contendo o nonce
+  if (message !== cached.message) {
     throw new Error("Mensagem não corresponde ao desafio emitido.");
   }
 
@@ -91,8 +93,8 @@ export function requireAuth(req, res, next) {
     });
     req.userAddress = decoded.address; // disponível nas rotas
     next();
-  } catch (err) {
-    return res.status(401).json({ error: "Token inválido ou expirado.", detail: err.message });
+  } catch (_err) {
+    return res.status(401).json({ error: "Token inválido ou expirado." });
   }
 }
 

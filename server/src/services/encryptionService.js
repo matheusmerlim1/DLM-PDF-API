@@ -20,7 +20,11 @@
 import crypto from "crypto";
 
 const MAGIC       = Buffer.from("DLM\x01");
-const MASTER_KEY  = () => Buffer.from(process.env.MASTER_ENCRYPTION_KEY || "0".repeat(64), "hex");
+const MASTER_KEY  = () => {
+  const hex = process.env.MASTER_ENCRYPTION_KEY;
+  if (!hex || hex.length !== 64) throw new Error("MASTER_ENCRYPTION_KEY ausente ou inválida (exige 64 hex chars).");
+  return Buffer.from(hex, "hex");
+};
 const ALGO        = "aes-256-cbc";
 const HMAC_ALGO   = "sha256";
 
