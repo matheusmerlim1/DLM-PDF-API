@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "cmd /c \"git add -A && git diff --cached --quiet || git commit -m \\\"chore: auto-sync [claude]\\\" && git push origin HEAD\" 2>$null; exit 0",
+            "timeout": 30,
+            "statusMessage": "Sincronizando com GitHub..."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -86,6 +86,41 @@ The server **always starts** regardless of blockchain status; mode is reported a
 ### Client (`client/`)
 Static HTML + `DLMViewer.js`. Runs in the browser, uses MetaMask for wallet signing and PDF.js for rendering. Decrypts the `.dlm` file **in memory** using the session key returned by the server — the PDF is never written to disk.
 
+## GitHub & Auto-Sync
+
+**Repository:** `https://github.com/matheusmerlim1/DLM-PDF-API`
+
+Every `git commit` automatically triggers a push to `origin main` via a git `post-commit` hook (`.git/hooks/post-commit`). Claude Code also pushes at the end of each session via a `Stop` hook in `.claude/settings.json`.
+
+To commit and push manually:
+```bash
+git add -A
+git commit -m "feat: description"
+# push happens automatically via post-commit hook
+```
+
+**Important:** `server/.env` and `.claude/settings.local.json` are gitignored and must never be committed.
+
+## Artigo LaTeX (`artigo_dlm_v5.tex`)
+
+This file is the academic paper describing the DLM-PDF system. **Whenever making a meaningful code change** (new feature, architecture change, new test results, updated performance numbers), update the relevant section of `artigo_dlm_v5.tex` to keep the paper in sync with the implementation. Config-only changes (CI, tooling, gitignore) do not require a tex update.
+
+Key sections to keep in sync:
+- `\section{Desenvolvimento}` — architecture, file format, access flow, resale/lending rules
+- `\subsection{Resultados dos Testes}` — test count, timing numbers, gas estimates
+- `\section{Considerações Finais}` — limitations and future work
+
+## Claude Code Skills
+
+Skills active for this project (invoke with `/skill-name`):
+
+| Skill | When to use |
+|-------|-------------|
+| `/security-review` | Before any PR touching auth, crypto, or smart contract logic |
+| `/review` | General code review of any PR or branch |
+| `/init` | Regenerate this CLAUDE.md if the architecture changes significantly |
+| `/update-config` | Change hooks, permissions, or env vars in `.claude/settings.json` |
+
 ## Key constraints
 - `royaltyBps` max is 3000 (30%) — enforced in the contract.
 - Loan duration max is 30 days — enforced in the contract.

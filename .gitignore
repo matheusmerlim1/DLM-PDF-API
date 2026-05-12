@@ -18,3 +18,6 @@ npm-debug.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# Claude Code local overrides — personal, not for the team
+.claude/settings.local.json
