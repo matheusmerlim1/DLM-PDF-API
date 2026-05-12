@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DLM-PDF Platform</title>
+
+  <!-- Fontes -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Estilos -->
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- PDF.js (renderização de PDF no browser) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     HEADER
+     ══════════════════════════════════════════════ -->
+<header>
+  <div>
+    <div class="logo">DLM-PDF PLATFORM</div>
+    <div class="logo-sub">Sistema de Custódia Digital via Blockchain</div>
+  </div>
+  <span class="chain-pill">ETHEREUM · EVM</span>
+</header>
+
+<!-- ══════════════════════════════════════════════
+     TABS
+     ══════════════════════════════════════════════ -->
+<div class="tabs">
+  <div class="tab active" data-tab="publisher">🏢 Editora — Criptografar PDF</div>
+  <div class="tab"        data-tab="reader">📖 Leitor — Abrir .dlm</div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAINEL: EDITORA
+     ══════════════════════════════════════════════ -->
+<div class="panel active" id="panel-publisher">
+  <div class="cols">
+
+    <!-- Sidebar esquerda -->
+    <div class="col-left">
+
+      <!-- 01: Selecionar PDF -->
+      <div>
+        <div class="slabel">01 — Selecionar PDF</div>
+        <div class="dropzone" id="pub-drop">
+          <input type="file" id="pub-file" accept=".pdf" />
+          <span class="dz-icon">📄</span>
+          <div class="dz-title">Arraste o PDF da obra</div>
+          <div class="dz-sub">ou clique para selecionar</div>
+        </div>
+        <div class="file-chip" id="pub-chip">📄 <span id="pub-fname"></span></div>
+      </div>
+
+      <!-- 02: Metadados -->
+      <div>
+        <div class="slabel">02 — Metadados da Licença</div>
+        <div class="card">
+          <div class="field">
+            <label>License ID (exemplar único)</label>
+            <input type="number" id="pub-licid" value="1" min="1" />
+          </div>
+          <div class="field">
+            <label>Título da obra</label>
+            <input type="text" id="pub-title" placeholder="Ex: O Senhor dos Anéis" />
+          </div>
+          <div class="field">
+            <label>Endereço do proprietário (wallet)</label>
+            <input type="text" id="pub-owner" placeholder="0x... (opcional)" />
+          </div>
+        </div>
+      </div>
+
+      <!-- 03: Etapas de criptografia -->
+      <div>
+        <div class="slabel">03 — Criptografar</div>
+        <div class="steps">
+          <div class="step" id="pstep-1">
+            <span class="step-ico" data-icon="🔐">🔐</span>
+            <span class="step-txt">Aguardando arquivo PDF...</span>
+          </div>
+          <div class="step" id="pstep-2">
+            <span class="step-ico" data-icon="🔑">🔑</span>
+            <span class="step-txt">Derivar chave HKDF-SHA256</span>
+          </div>
+          <div class="step" id="pstep-3">
+            <span class="step-ico" data-icon="⚙️">⚙️</span>
+            <span class="step-txt">Cifrar com AES-256-CBC</span>
+          </div>
+          <div class="step" id="pstep-4">
+            <span class="step-ico" data-icon="🧩">🧩</span>
+            <span class="step-txt">Montar cabeçalho .dlm</span>
+          </div>
+          <div class="step" id="pstep-5">
+            <span class="step-ico" data-icon="✅">✅</span>
+            <span class="step-txt">Arquivo .dlm gerado</span>
+          </div>
+        </div>
+
+        <div style="margin-top:.9rem">
+          <div class="progress-bar">
+            <div class="progress-fill" id="pub-prog"></div>
+          </div>
+        </div>
+
+        <div style="margin-top:.75rem">
+          <button class="btn btn-gold" id="btn-encrypt" disabled>
+            🔒 Gerar arquivo .dlm
+          </button>
+        </div>
+      </div>
+
+      <!-- Resultado: hash + download -->
+      <div class="result-box" id="pub-result">
+        <h3>✅ ARQUIVO .DLM GERADO</h3>
+        <div class="hash-display" id="pub-hash-display"></div>
+        <button class="btn btn-primary" id="btn-download">⬇ Baixar .dlm</button>
+        <div style="margin-top:.6rem">
+          <button class="btn btn-ghost" id="btn-copy-hash">📋 Copiar hash SHA-256</button>
+        </div>
+      </div>
+
+      <!-- Nota de demonstração -->
+      <div class="demo-note">
+        <strong>⚡ MODO DEMONSTRAÇÃO</strong>
+        A criptografia ocorre 100% no navegador via Web Crypto API
+        (AES-256-CBC + HKDF-SHA-256 + HMAC). Em produção, a chave mestra
+        reside no servidor de autenticação e o registro on-chain é feito
+        via Smart Contract.
+      </div>
+
+    </div><!-- /col-left -->
+
+    <!-- Painel direito: diagrama + detalhes técnicos -->
+    <div class="col-right">
+
+      <!-- Estado vazio: diagrama do formato .dlm -->
+      <div class="right-empty" id="pub-empty">
+        <div class="empty-icon">🔐</div>
+        <div class="empty-title">Formato do arquivo .dlm</div>
+        <div class="empty-sub" style="max-width:400px;opacity:.7;margin-bottom:1.5rem">
+          O PDF é cifrado e empacotado no formato proprietário <strong>.dlm</strong>.
+          A chave de decifragem nunca fica no arquivo — ela é derivada
+          on-chain no momento de leitura.
+        </div>
+        <div style="width:100%;max-width:520px">
+          <div class="slabel" style="text-align:left;margin-bottom:.5rem">
+            Estrutura binária do arquivo .dlm
+          </div>
+          <div id="format-diagram"></div>
+        </div>
+      </div>
+
+      <!-- Estado pós-geração: detalhes técnicos + hex dump -->
+      <div id="pub-preview" style="display:none;flex:1;flex-direction:column">
+        <div style="padding:1.5rem 2rem;border-bottom:1px solid var(--border)">
+          <div class="slabel">Arquivo gerado — Detalhes técnicos</div>
+          <div id="pub-tech-view"
+               style="font-family:var(--mono);font-size:.72rem;line-height:1.8;color:var(--muted)">
+          </div>
+        </div>
+        <div style="padding:1.5rem 2rem;flex:1;overflow-y:auto">
+          <div class="slabel">Hex dump — primeiros 128 bytes do .dlm</div>
+          <div id="pub-hex"
+               style="font-family:var(--mono);font-size:.65rem;color:var(--cyan);
+                      line-height:1.7;word-break:break-all;white-space:pre-wrap">
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /col-right -->
+  </div>
+</div><!-- /panel-publisher -->
+
+<!-- ══════════════════════════════════════════════
+     PAINEL: LEITOR
+     ══════════════════════════════════════════════ -->
+<div class="panel" id="panel-reader">
+  <div class="cols">
+
+    <!-- Sidebar esquerda -->
+    <div class="col-left">
+
+      <!-- 01: Carteira -->
+      <div>
+        <div class="slabel">01 — Carteira Ethereum</div>
+        <div class="card">
+          <div class="card-title">🦊 Autenticação</div>
+          <button class="btn btn-primary" id="btn-connect">Conectar MetaMask</button>
+          <button class="btn btn-ghost" id="btn-demo" style="margin-top:.5rem">
+            🔬 Simular (demo)
+          </button>
+          <div class="wallet-badge" id="wallet-badge">
+            <div class="dot"></div>
+            <span id="wallet-addr">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 02: Arquivo .dlm -->
+      <div>
+        <div class="slabel">02 — Arquivo .dlm</div>
+        <div class="dropzone" id="read-drop">
+          <input type="file" id="read-file" accept=".dlm" />
+          <span class="dz-icon">🔒</span>
+          <div class="dz-title">Arraste o arquivo .dlm</div>
+          <div class="dz-sub">gerado pela editora</div>
+        </div>
+        <div class="file-chip" id="read-chip">🔒 <span id="read-fname"></span></div>
+      </div>
+
+      <!-- 03: License ID (extraído automaticamente) -->
+      <div>
+        <div class="slabel">03 — Licença</div>
+        <div class="card">
+          <div class="field">
+            <label>License ID (lido do cabeçalho do arquivo)</label>
+            <input
+              type="text"
+              id="read-licid"
+              placeholder="Extraído automaticamente do .dlm"
+              readonly
+              style="color:var(--cyan)"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- 04: Etapas de validação -->
+      <div>
+        <div class="slabel">04 — Validação</div>
+        <div class="steps">
+          <div class="step" id="rstep-1">
+            <span class="step-ico" data-icon="📂">📂</span>
+            <span class="step-txt">Aguardando arquivo .dlm...</span>
+          </div>
+          <div class="step" id="rstep-2">
+            <span class="step-ico" data-icon="🏷️">🏷️</span>
+            <span class="step-txt">Extrair licenseId do cabeçalho</span>
+          </div>
+          <div class="step" id="rstep-3">
+            <span class="step-ico" data-icon="✍️">✍️</span>
+            <span class="step-txt">Assinar nonce com carteira</span>
+          </div>
+          <div class="step" id="rstep-4">
+            <span class="step-ico" data-icon="⛓️">⛓️</span>
+            <span class="step-txt">Validar posse na Blockchain</span>
+          </div>
+          <div class="step" id="rstep-5">
+            <span class="step-ico" data-icon="🔑">🔑</span>
+            <span class="step-txt">Derivar chave + verificar HMAC</span>
+          </div>
+          <div class="step" id="rstep-6">
+            <span class="step-ico" data-icon="📖">📖</span>
+            <span class="step-txt">Decifrar e renderizar PDF</span>
+          </div>
+        </div>
+
+        <div style="margin-top:.9rem">
+          <div class="progress-bar">
+            <div class="progress-fill" id="read-prog"></div>
+          </div>
+        </div>
+
+        <div style="margin-top:.75rem">
+          <button class="btn btn-primary" id="btn-open" disabled>
+            🔓 Abrir e-book
+          </button>
+        </div>
+      </div>
+
+      <!-- Card de informações da licença validada -->
+      <div class="info-card" id="read-info">
+        <div class="info-row">
+          <span class="info-key">License ID</span>
+          <span class="info-val" id="ri-id">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-key">Proprietário</span>
+          <span class="info-val ok" id="ri-owner">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-key">Acesso</span>
+          <span class="info-val ok" id="ri-access">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-key">TX Hash</span>
+          <span class="info-val" id="ri-tx">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-key">HMAC</span>
+          <span class="info-val ok" id="ri-hmac">—</span>
+        </div>
+      </div>
+
+    </div><!-- /col-left -->
+
+    <!-- Painel direito: leitor de PDF -->
+    <div class="col-right" id="reader-right">
+
+      <!-- Estado vazio -->
+      <div class="right-empty" id="read-empty">
+        <div class="empty-icon">📚</div>
+        <div class="empty-title">Nenhum livro aberto</div>
+        <div class="empty-sub">
+          Conecte sua carteira, selecione um arquivo .dlm
+          e valide a posse para iniciar a leitura.
+        </div>
+      </div>
+
+      <!-- Toolbar do leitor (visível após abertura) -->
+      <div class="toolbar" id="read-toolbar">
+        <span class="toolbar-info" id="read-pageinfo">—</span>
+        <div class="secure-pill">🔒 <span>EM MEMÓRIA · SEM DISCO</span></div>
+      </div>
+
+      <!-- Páginas do PDF renderizadas em canvas -->
+      <div id="pdf-pages"></div>
+
+    </div><!-- /col-right -->
+  </div>
+</div><!-- /panel-reader -->
+
+<!-- ══════════════════════════════════════════════
+     TOASTS
+     ══════════════════════════════════════════════ -->
+<div id="toasts"></div>
+
+<!-- ══════════════════════════════════════════════
+     SCRIPTS (ordem de dependência)
+     ══════════════════════════════════════════════ -->
+<script src="js/crypto.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/publisher.js"></script>
+<script src="js/reader.js"></script>
+<script src="js/main.js"></script>
+
+</body>
+</html>

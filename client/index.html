@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DLM-PDF Reader — Leitor de E-books com Custódia Blockchain</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1e40af, #0f172a);
+      padding: 1.25rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      border-bottom: 1px solid #334155;
+    }
+
+    header h1 { margin: 0; font-size: 1.4rem; color: #93c5fd; }
+    header p  { margin: 0; font-size: 0.8rem; color: #94a3b8; }
+
+    #app {
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card h2 { margin: 0 0 1rem; font-size: 1.1rem; color: #7dd3fc; }
+
+    button {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.6rem 1.2rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover  { background: #1d4ed8; }
+    button:disabled { background: #475569; cursor: not-allowed; }
+
+    .btn-danger { background: #dc2626; }
+    .btn-danger:hover { background: #b91c1c; }
+
+    #status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: #94a3b8;
+      margin-top: 0.75rem;
+    }
+
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #94a3b8;
+    }
+    .dot.green  { background: #22c55e; }
+    .dot.yellow { background: #eab308; }
+    .dot.red    { background: #ef4444; }
+
+    #drop-zone {
+      border: 2px dashed #334155;
+      border-radius: 12px;
+      padding: 2.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      color: #64748b;
+    }
+    #drop-zone:hover, #drop-zone.drag-over {
+      border-color: #3b82f6;
+      background: #1e3a5f22;
+      color: #93c5fd;
+    }
+
+    #drop-zone input { display: none; }
+    #drop-zone .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+
+    #license-info {
+      display: none;
+      background: #0f172a;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 1rem;
+      font-size: 0.8rem;
+      color: #94a3b8;
+      font-family: monospace;
+      word-break: break-all;
+    }
+
+    #pdf-container {
+      background: #0f172a;
+      border-radius: 8px;
+      padding: 1rem;
+      min-height: 200px;
+      overflow-y: auto;
+      max-height: 80vh;
+    }
+
+    #pdf-container canvas {
+      border-radius: 4px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 1.5rem; right: 1.5rem;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 0.75rem 1.25rem;
+      font-size: 0.85rem;
+      max-width: 320px;
+      z-index: 999;
+      animation: slideIn 0.3s ease;
+    }
+    .toast.error  { border-color: #ef4444; color: #fca5a5; }
+    .toast.success { border-color: #22c55e; color: #86efac; }
+
+    @keyframes slideIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    #loading {
+      display: none;
+      text-align: center;
+      padding: 2rem;
+      color: #64748b;
+    }
+    #loading::after {
+      content: '';
+      display: block;
+      width: 32px; height: 32px;
+      border: 3px solid #334155;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      margin: 0.75rem auto 0;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>📚 DLM-PDF Reader</h1>
+    <p>Leitor de e-books com custódia de posse via Blockchain</p>
+  </div>
+</header>
+
+<div id="app">
+
+  <!-- Conexão da Carteira -->
+  <div class="card">
+    <h2>🔐 Autenticação</h2>
+    <button id="btn-connect">Conectar Carteira (MetaMask)</button>
+    <div id="status">
+      <div class="dot" id="status-dot"></div>
+      <span id="status-text">Desconectado</span>
+    </div>
+  </div>
+
+  <!-- Abertura do Arquivo -->
+  <div class="card">
+    <h2>📂 Abrir E-book (.dlm)</h2>
+    <div id="drop-zone">
+      <div class="icon">📄</div>
+      <div>Arraste um arquivo <strong>.dlm</strong> aqui</div>
+      <div style="margin-top:0.4rem;font-size:0.8rem">ou clique para selecionar</div>
+      <input type="file" id="file-input" accept=".dlm" />
+    </div>
+    <div id="license-info"></div>
+  </div>
+
+  <!-- Visualizador -->
+  <div class="card" id="reader-card" style="display:none">
+    <h2>📖 Visualizador</h2>
+    <div id="loading">Validando posse na blockchain...</div>
+    <div id="pdf-container"></div>
+  </div>
+
+</div>
+
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- ethers.js v6 -->
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.11.1/dist/ethers.umd.min.js"></script>
+
+<script type="module">
+  // ─── Configuração ────────────────────────────────────────────────────────
+  const API_BASE  = "http://localhost:3000/api/v1";
+  const WORKER    = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+  pdfjsLib.GlobalWorkerOptions.workerSrc = WORKER;
+
+  // ─── Estado ──────────────────────────────────────────────────────────────
+  let jwt     = null;
+  let address = null;
+
+  // ─── UI helpers ──────────────────────────────────────────────────────────
+  function toast(msg, type = "info") {
+    const el = document.createElement("div");
+    el.className = `toast ${type}`;
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+  }
+
+  function setStatus(text, color) {
+    document.getElementById("status-text").textContent = text;
+    document.getElementById("status-dot").className = `dot ${color}`;
+  }
+
+  function showLoading(show) {
+    document.getElementById("loading").style.display    = show ? "block" : "none";
+    document.getElementById("pdf-container").style.display = show ? "none" : "block";
+  }
+
+  // ─── Autenticação ─────────────────────────────────────────────────────────
+  document.getElementById("btn-connect").addEventListener("click", async () => {
+    try {
+      setStatus("Conectando...", "yellow");
+      const btn = document.getElementById("btn-connect");
+      btn.disabled = true;
+
+      if (!window.ethereum) throw new Error("MetaMask não detectado.");
+
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      const signer   = await provider.getSigner();
+      address        = (await signer.getAddress()).toLowerCase();
+
+      // Solicita desafio
+      const cRes = await fetch(`${API_BASE}/auth/challenge?address=${address}`);
+      if (!cRes.ok) throw new Error("Erro ao obter desafio.");
+      const { message } = await cRes.json();
+
+      // Assina
+      const signature = await signer.signMessage(message);
+
+      // Login
+      const lRes = await fetch(`${API_BASE}/auth/login`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ address, message, signature }),
+      });
+      if (!lRes.ok) throw new Error((await lRes.json()).error);
+      jwt = (await lRes.json()).token;
+
+      setStatus(`Conectado: ${address.slice(0,6)}...${address.slice(-4)}`, "green");
+      btn.textContent = "✅ Conectado";
+      toast("Carteira autenticada com sucesso!", "success");
+    } catch (err) {
+      setStatus("Erro de conexão", "red");
+      document.getElementById("btn-connect").disabled = false;
+      toast(err.message, "error");
+    }
+  });
+
+  // ─── Drag & Drop / File Input ─────────────────────────────────────────────
+  const dropZone  = document.getElementById("drop-zone");
+  const fileInput = document.getElementById("file-input");
+
+  dropZone.addEventListener("click", () => fileInput.click());
+  dropZone.addEventListener("dragover", (e) => { e.preventDefault(); dropZone.classList.add("drag-over"); });
+  dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
+  dropZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropZone.classList.remove("drag-over");
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  });
+  fileInput.addEventListener("change", (e) => {
+    if (e.target.files[0]) handleFile(e.target.files[0]);
+  });
+
+  // ─── Abertura do arquivo .dlm ─────────────────────────────────────────────
+  async function handleFile(file) {
+    if (!jwt) { toast("Conecte sua carteira primeiro.", "error"); return; }
+    if (!file.name.endsWith(".dlm")) { toast("Arquivo deve ter extensão .dlm", "error"); return; }
+
+    document.getElementById("reader-card").style.display = "block";
+    showLoading(true);
+
+    try {
+      const dlmBuffer  = await file.arrayBuffer();
+      const licenseId  = readLicenseId(dlmBuffer);
+
+      // Mostra info da licença
+      const infoEl = document.getElementById("license-info");
+      infoEl.style.display = "block";
+      infoEl.textContent   = `Arquivo: ${file.name} | License ID: ${licenseId} | Validando posse na blockchain...`;
+
+      // Handshake com o servidor
+      const hRes = await fetch(`${API_BASE}/licenses/${licenseId}/open`, {
+        method:  "POST",
+        headers: {
+          "Content-Type":  "application/json",
+          "Authorization": `Bearer ${jwt}`,
+        },
+        body: JSON.stringify({}),
+      });
+
+      if (hRes.status === 403) {
+        const err = await hRes.json();
+        throw new Error(err.error);
+      }
+      if (!hRes.ok) throw new Error("Falha na validação de acesso.");
+
+      const { sessionKey, txHash } = await hRes.json();
+      infoEl.textContent = `✅ Acesso validado | License ID: ${licenseId} | TX: ${txHash?.slice(0,10)}...`;
+
+      // Decripta em memória
+      const pdfBuffer = await decryptDLM(dlmBuffer, sessionKey);
+
+      // Renderiza
+      showLoading(false);
+      await renderPDF(pdfBuffer);
+      toast("E-book aberto com sucesso!", "success");
+
+    } catch (err) {
+      showLoading(false);
+      document.getElementById("reader-card").style.display = "none";
+      toast(err.message, "error");
+    }
+  }
+
+  // ─── Decriptação Web Crypto ───────────────────────────────────────────────
+  async function decryptDLM(dlmBuffer, sessionKey) {
+    const bytes = new Uint8Array(dlmBuffer);
+    // Valida magic DLM\x01
+    if (bytes[0] !== 0x44 || bytes[1] !== 0x4C || bytes[2] !== 0x4D || bytes[3] !== 0x01) {
+      throw new Error("Formato de arquivo .dlm inválido.");
+    }
+
+    const iv         = bytes.slice(12, 28);
+    const ciphertext = bytes.slice(60);
+
+    const keyBytes  = hexToBytes(sessionKey);
+    const cryptoKey = await crypto.subtle.importKey(
+      "raw", keyBytes, { name: "AES-CBC" }, false, ["decrypt"]
+    );
+
+    return await crypto.subtle.decrypt({ name: "AES-CBC", iv }, cryptoKey, ciphertext);
+  }
+
+  // ─── Renderização PDF.js ──────────────────────────────────────────────────
+  async function renderPDF(pdfBuffer) {
+    const container = document.getElementById("pdf-container");
+    container.innerHTML = "";
+
+    const pdf      = await pdfjsLib.getDocument({ data: pdfBuffer }).promise;
+    const total    = pdf.numPages;
+
+    for (let n = 1; n <= total; n++) {
+      const page     = await pdf.getPage(n);
+      const viewport = page.getViewport({ scale: 1.5 });
+      const canvas   = document.createElement("canvas");
+      canvas.width   = viewport.width;
+      canvas.height  = viewport.height;
+      canvas.style.cssText = "display:block;margin:0 auto 16px;border-radius:4px";
+      container.appendChild(canvas);
+
+      await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+    }
+  }
+
+  // ─── Utilitários ──────────────────────────────────────────────────────────
+  function readLicenseId(dlmBuffer) {
+    const view = new DataView(dlmBuffer);
+    const high = view.getUint32(4, false);
+    const low  = view.getUint32(8, false);
+    return (BigInt(high) * 0x100000000n + BigInt(low)).toString();
+  }
+
+  function hexToBytes(hex) {
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < hex.length; i += 2) bytes[i/2] = parseInt(hex.substr(i, 2), 16);
+    return bytes;
+  }
+</script>
+
+</body>
+</html>
