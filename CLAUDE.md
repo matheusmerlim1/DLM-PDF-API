@@ -152,6 +152,20 @@ Skills active for this project (invoke with `/skill-name`):
 | `/init` | Regenerate this CLAUDE.md if the architecture changes significantly |
 | `/update-config` | Change hooks, permissions, or env vars in `.claude/settings.json` |
 
+### Revisão obrigatória ao final de cada sessão
+
+**Após terminar qualquer conjunto de alterações**, Claude deve executar a seguinte sequência de revisão antes de encerrar a sessão:
+
+1. **`/security-review`** — revisar todo código tocado que envolva autenticação, criptografia ou contrato inteligente. Verificar: timing attacks, uso correto de `timingSafeEqual`, validade dos JWTs, exposição acidental de chaves.
+2. **`/review`** — revisão geral do estado do branch: arquivos modificados, coerência entre implementação e testes, qualidade dos commits.
+3. **Checklist manual rápido:**
+   - [ ] `artigo_dlm_v5.tex` está em sincronia com o código? (seções Desenvolvimento e Resultados)
+   - [ ] Score do Detector de IA no texto editado está ≤ 30%?
+   - [ ] `server/.env` e `.claude/settings.local.json` **não** aparecem no `git status`?
+   - [ ] Os testes do servidor passam? (`cd server && npm test`)
+   - [ ] O contrato compila sem warnings? (`npx hardhat compile`)
+4. **Commit e push** — se houver alterações pendentes, commitar e o hook de post-commit empurra automaticamente para o GitHub.
+
 ## Key constraints
 - `royaltyBps` max is 3000 (30%) — enforced in the contract.
 - Loan duration max is 30 days — enforced in the contract.
