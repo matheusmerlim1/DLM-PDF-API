@@ -5,13 +5,14 @@
   "private": true,
   "workspaces": ["server"],
   "scripts": {
-    "node:install": "npm install --prefix server",
-    "node:dev":     "npm run dev --prefix server",
-    "node:start":   "npm run start --prefix server",
+    "start":         "node server/src/index.js",
+    "node:install":  "npm install --prefix server",
+    "node:dev":      "npm run dev --prefix server",
+    "node:start":    "npm run start --prefix server",
     "chain:install": "npm install",
-    "chain:node":   "npx hardhat node",
-    "chain:deploy": "npx hardhat run scripts/deploy.js --network localhost",
-    "chain:test":   "npx hardhat test"
+    "chain:node":    "npx hardhat node",
+    "chain:deploy":  "npx hardhat run scripts/deploy.js --network localhost",
+    "chain:test":    "npx hardhat test"
   },
   "devDependencies": {
     "hardhat":              "^2.22.4",
