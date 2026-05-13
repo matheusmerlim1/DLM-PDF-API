@@ -216,6 +216,11 @@ class BlockchainService {
     this._requireConnection("validateAccess");
 
     if (this.mode === "demo") {
+      // No modo demo, registra automaticamente o requester como owner de licenseId=1
+      // para facilitar testes sem configurar carteiras específicas
+      if (String(licenseId) === "1" && DEMO_LICENSES["1"]) {
+        DEMO_LICENSES["1"].owner = requesterAddress.toLowerCase();
+      }
       const lic     = DEMO_LICENSES[String(licenseId)];
       const granted = lic
         ? lic.owner.toLowerCase() === requesterAddress.toLowerCase()

@@ -107,15 +107,14 @@ export function sha256Hex(buffer) {
 }
 
 /**
- * Gera uma chave de sessão efêmera para leitura em memória.
- * O viewer usa essa chave para decriptação local sem persistir em disco.
+ * Retorna a chave de conteúdo para o licenseId, transmitida ao cliente
+ * somente após validação de posse on-chain.
+ * É a mesma chave HKDF usada para cifrar o .dlm — o cliente decripta em memória.
+ * sessionNonce é mantido na assinatura por compatibilidade mas não altera a chave.
  * @param {string} licenseId
- * @param {string} sessionNonce - nonce único por sessão
+ * @param {string} sessionNonce - incluído no log/resposta para rastreabilidade
  * @returns {string} Chave hex de 32 bytes
  */
-export function generateSessionKey(licenseId, sessionNonce) {
-  return crypto
-    .createHmac("sha256", deriveKey(licenseId))
-    .update(sessionNonce)
-    .digest("hex");
+export function generateSessionKey(licenseId, _sessionNonce) {
+  return Buffer.from(deriveKey(licenseId)).toString("hex");
 }

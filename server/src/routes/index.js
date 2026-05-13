@@ -25,6 +25,27 @@ function wrap(fn) {
 }
 
 // ═══════════════════════════════════════════════════════════
+//  ROOT — info da API
+// ═══════════════════════════════════════════════════════════
+
+router.get("/", (req, res) => {
+  res.json({
+    name: "DLM-PDF API",
+    version: "1.0.0",
+    endpoints: {
+      health:     "GET  /api/v1/health",
+      challenge:  "GET  /api/v1/auth/challenge?address=0x...",
+      login:      "POST /api/v1/auth/login",
+      myLicenses: "GET  /api/v1/licenses/mine  [Bearer]",
+      openLicense:"POST /api/v1/licenses/:id/open  [Bearer]",
+      bookInfo:   "GET  /api/v1/books/:id",
+      encrypt:    "POST /api/v1/publisher/encrypt  [Bearer]",
+    },
+    client: "http://localhost:3001",
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
 //  HEALTH — status do servidor e da blockchain
 // ═══════════════════════════════════════════════════════════
 
