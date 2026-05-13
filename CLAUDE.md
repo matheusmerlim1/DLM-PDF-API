@@ -110,6 +110,14 @@ Key sections to keep in sync:
 - `\subsection{Resultados dos Testes}` — test count, timing numbers, gas estimates
 - `\section{Considerações Finais}` — limitations and future work
 
+### Versionamento do artigo
+
+**Antes de editar `artigo_dlm_v5.tex`**, salve a versão anterior com a data:
+```powershell
+Copy-Item artigo_dlm_v5.tex artigo_dlm_v5_YYYY-MM-DD.tex
+```
+Nunca sobrescreva o arquivo anterior sem antes salvá-lo com data. Isso cria um histórico de versões legível sem depender só do git.
+
 ### Detector de IA — obrigatório após cada edição no .tex
 
 **Após qualquer edição no `artigo_dlm_v5.tex`**, aplique a análise do Detector de IA (`C:\Users\User\programacao_codigo\Detector de IA-claude\detector-ia.jsx`) e reescreva o texto até atingir score <= 30% (verde, "INDICADORES HUMANOS").
