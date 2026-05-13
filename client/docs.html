@@ -338,6 +338,13 @@
   </div>
 
   <div class="nav-section">
+    <h3>Blockchain</h3>
+    <button class="nav-item" onclick="show('wallet', this)">
+      <span class="method-badge GET">GET</span> /wallet/:address
+    </button>
+  </div>
+
+  <div class="nav-section">
     <h3>Conteúdo</h3>
     <button class="nav-item" onclick="show('books', this)">
       <span class="method-badge GET">GET</span> /books/:id
@@ -807,6 +814,68 @@ curl -X POST <span class="str">http://localhost:3000/api/v1/auth/login</span> \
     </div>
   </section>
 
+  <!-- WALLET -->
+  <section id="wallet">
+    <h2>GET /wallet/:address</h2>
+    <p class="section-desc">
+      Consulta pública — sem autenticação. Retorna todas as licenças registradas na blockchain
+      para um endereço Ethereum. Use para verificar a posse de qualquer carteira diretamente,
+      sem precisar de MetaMask ou JWT.
+    </p>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="method-pill GET">GET</span>
+        <span class="endpoint-path">/api/v1/wallet/:address</span>
+      </div>
+      <div class="params-label">Path params</div>
+      <div class="param-row">
+        <span class="param-name">address <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Endereço Ethereum (0x + 40 hex chars)</span>
+      </div>
+
+      <div class="try-section">
+        <div class="try-label">Testar — cole qualquer endereço</div>
+        <div class="input-row">
+          <input class="try-input" id="wallet-addr"
+            placeholder="0xEnderecoEthereum"
+            value="0xf39Fd6e51aad88F6f4ce6aB8827279cffFb92266" />
+          <button class="try-btn" onclick="tryWallet()">Consultar →</button>
+        </div>
+        <div class="try-response" id="wallet-resp"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="params-label">Resposta</p>
+<pre><span class="fn">{</span>
+  <span class="key">"address"</span>:       <span class="str">"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"</span>,
+  <span class="key">"blockchain"</span>:    <span class="str">"demo"</span>,
+  <span class="key">"totalLicenses"</span>: <span class="num">1</span>,
+  <span class="key">"licenses"</span>: [
+    <span class="fn">{</span>
+      <span class="key">"licenseId"</span>:    <span class="str">"1"</span>,
+      <span class="key">"bookId"</span>:       <span class="str">"1"</span>,
+      <span class="key">"owner"</span>:        <span class="str">"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"</span>,
+      <span class="key">"borrower"</span>:     <span class="str">"0x0000000000000000000000000000000000000000"</span>,
+      <span class="key">"isLoanActive"</span>: <span class="kw">false</span>,
+      <span class="key">"book"</span>: <span class="fn">{</span>
+        <span class="key">"title"</span>:      <span class="str">"Livro Demo — DLM-PDF"</span>,
+        <span class="key">"author"</span>:     <span class="str">"Autor Demo"</span>,
+        <span class="key">"publisher"</span>:  <span class="str">"0x..."</span>,
+        <span class="key">"royaltyBps"</span>: <span class="str">"500"</span>,
+        <span class="key">"active"</span>:     <span class="kw">true</span>
+      <span class="fn">}</span>
+    <span class="fn">}</span>
+  ]
+<span class="fn">}</span></pre>
+      <p class="params-label" style="margin-top:0.75rem">Acesso direto pelo browser</p>
+<pre><span class="cm"># Abra diretamente no browser ou copie no terminal:</span>
+http://localhost:3000/api/v1/wallet/0xSEU_ENDERECO</pre>
+    </div>
+  </section>
+
   <!-- HEALTH -->
   <section id="health">
     <h2>GET /health</h2>
@@ -914,6 +983,15 @@ curl -X POST <span class="str">http://localhost:3000/api/v1/auth/login</span> \
     const el = document.getElementById('book-resp');
     try {
       const r = await fetch(`${API}/books/${id}`);
+      showResp(el, await r.json(), r.ok);
+    } catch(e) { showResp(el, { error: e.message }, false); }
+  }
+
+  async function tryWallet() {
+    const addr = document.getElementById('wallet-addr').value.trim();
+    const el   = document.getElementById('wallet-resp');
+    try {
+      const r = await fetch(`${API}/wallet/${addr}`);
       showResp(el, await r.json(), r.ok);
     } catch(e) { showResp(el, { error: e.message }, false); }
   }

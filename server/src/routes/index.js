@@ -36,6 +36,7 @@ router.get("/", (req, res) => {
       health:     "GET  /api/v1/health",
       challenge:  "GET  /api/v1/auth/challenge?address=0x...",
       login:      "POST /api/v1/auth/login",
+      wallet:     "GET  /api/v1/wallet/:address",
       myLicenses: "GET  /api/v1/licenses/mine  [Bearer]",
       openLicense:"POST /api/v1/licenses/:id/open  [Bearer]",
       bookInfo:   "GET  /api/v1/books/:id",
@@ -163,6 +164,51 @@ router.post("/licenses/:id/open", requireAuth, wrap(async (req, res) => {
     sessionKey,
     sessionNonce,
     expiresAt: Date.now() + 60 * 60 * 1000,
+  });
+}));
+
+// ═══════════════════════════════════════════════════════════
+//  CARTEIRA — consulta pública (sem auth)
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * GET /wallet/:address
+ * Retorna tudo registrado na blockchain para um endereço Ethereum.
+ * Endpoint público — não requer JWT. Útil para verificar posse externamente.
+ */
+router.get("/wallet/:address", wrap(async (req, res) => {
+  const address = req.params.address;
+
+  if (!/^0x[0-9a-fA-F]{40}$/i.test(address)) {
+    return res.status(400).json({ error: "Endereço Ethereum inválido." });
+  }
+
+  const normalizedAddress = address.toLowerCase();
+  const licenseIds = await blockchainService.getLicensesByOwner(normalizedAddress);
+
+  // Para cada licença, busca os detalhes e o livro correspondente
+  const licenses = await Promise.all(
+    licenseIds.map(async (licenseId) => {
+      const license = await blockchainService.getLicenseInfo(licenseId);
+      let book = null;
+      try {
+        book = await blockchainService.getBookInfo(license.bookId);
+      } catch (_) {}
+      return {
+        licenseId,
+        ...license,
+        book,
+      };
+    })
+  );
+
+  const status = blockchainService.getStatus();
+
+  res.json({
+    address:       normalizedAddress,
+    blockchain:    status.mode,
+    totalLicenses: licenses.length,
+    licenses,
   });
 }));
 
