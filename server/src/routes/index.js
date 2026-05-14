@@ -8,7 +8,16 @@
 
 import { Router }            from "express";
 import { blockchainService } from "../services/blockchainService.js";
-import { generateSessionKey, sha256Hex } from "../services/encryptionService.js";
+import {
+  generateSessionKey,
+  sha256Hex,
+  encryptToDLM,
+  encryptToDLMv2,
+  decryptAny,
+  parseDLMHeader,
+  storePDF,
+  loadPDF,
+} from "../services/encryptionService.js";
 import {
   generateChallenge,
   verifySignature,
@@ -136,8 +145,8 @@ router.get("/licenses/:id/access", requireAuth, wrap(async (req, res) => {
 }));
 
 /**
- * POST /licenses/:id/open — handshake principal
- * Valida posse on-chain e retorna chave de sessão efêmera.
+ * POST /licenses/:id/open — handshake (mantido para compatibilidade).
+ * Prefira /licenses/:id/read que retorna o PDF diretamente.
  */
 router.post("/licenses/:id/open", requireAuth, wrap(async (req, res) => {
   const licenseId = req.params.id;
@@ -164,6 +173,123 @@ router.post("/licenses/:id/open", requireAuth, wrap(async (req, res) => {
     sessionKey,
     sessionNonce,
     expiresAt: Date.now() + 60 * 60 * 1000,
+    _note: "sessionKey deprecado — use POST /licenses/:id/read para descriptografia server-side",
+  });
+}));
+
+/**
+ * POST /licenses/:id/read — descriptografa .dlm no servidor e retorna PDF.
+ *
+ * Body (JSON): { dlmBase64?: string }
+ *  - Se fornecido: descriptografa o arquivo enviado (v1 ou v2).
+ *  - Se omitido:   gera a partir do PDF armazenado (requer upload prévio).
+ *
+ * Retorna: { pdfBase64: string, licenseId: string, ownerAddress: string|null }
+ */
+router.post("/licenses/:id/read", requireAuth, wrap(async (req, res) => {
+  const licenseId = req.params.id;
+  const userAddr  = req.userAddress;
+
+  // 1. Verifica posse on-chain
+  const { granted, txHash } = await blockchainService.validateAccessOnChain(licenseId, userAddr);
+  if (!granted) {
+    return res.status(403).json({
+      error: "Acesso negado. Você não é o proprietário desta licença na blockchain.",
+      licenseId,
+    });
+  }
+
+  let pdf, ownerAddress = null;
+
+  if (req.body.dlmBase64) {
+    // Usuário enviou o arquivo .dlm
+    const dlmBuffer = Buffer.from(req.body.dlmBase64, "base64");
+
+    // Para v2: verifica que ownerAddress no arquivo == carteira autenticada
+    const header = parseDLMHeader(dlmBuffer);
+    if (header.version === 2 && header.ownerAddress.toLowerCase() !== userAddr.toLowerCase()) {
+      return res.status(403).json({
+        error: `Arquivo pertence a ${header.ownerAddress.slice(0, 10)}...${header.ownerAddress.slice(-6)}. Use a carteira correta.`,
+      });
+    }
+
+    ({ pdf, ownerAddress } = decryptAny(dlmBuffer, userAddr));
+
+  } else {
+    // Tenta usar PDF armazenado no servidor
+    const licInfo = await blockchainService.getLicenseInfo(licenseId).catch(() => null);
+    const bookId  = licInfo?.bookId;
+    const stored  = bookId ? loadPDF(bookId) : null;
+
+    if (!stored) {
+      return res.status(404).json({
+        error: "PDF não armazenado no servidor. Envie o arquivo .dlm no corpo da requisição.",
+      });
+    }
+
+    // Gera .dlm v2 owner-bound e já retorna o PDF
+    pdf = stored;
+    ownerAddress = userAddr;
+  }
+
+  res.json({
+    pdfBase64:    pdf.toString("base64"),
+    licenseId,
+    ownerAddress,
+    txHash,
+  });
+}));
+
+/**
+ * POST /licenses/:id/reencrypt — descriptografa o .dlm do dono atual
+ * e re-encripta para o novo dono. Usado na transferência de licenças.
+ *
+ * Body (JSON): { dlmBase64: string, newOwnerAddress: string }
+ * Retorna: { dlmBase64: string, licenseId: string, newOwnerAddress: string, version: 2 }
+ */
+router.post("/licenses/:id/reencrypt", requireAuth, wrap(async (req, res) => {
+  const licenseId                     = req.params.id;
+  const userAddr                      = req.userAddress;
+  const { dlmBase64, newOwnerAddress } = req.body;
+
+  if (!dlmBase64 || !newOwnerAddress) {
+    return res.status(400).json({ error: "dlmBase64 e newOwnerAddress são obrigatórios." });
+  }
+  if (!/^0x[0-9a-fA-F]{40}$/i.test(newOwnerAddress)) {
+    return res.status(400).json({ error: "newOwnerAddress inválido." });
+  }
+
+  // Verifica que o requisitante é o dono atual na blockchain
+  const { granted } = await blockchainService.validateAccessOnChain(licenseId, userAddr);
+  if (!granted) {
+    return res.status(403).json({
+      error: "Acesso negado. Você não é o proprietário atual desta licença.",
+      licenseId,
+    });
+  }
+
+  const dlmBuffer = Buffer.from(dlmBase64, "base64");
+
+  // Para v2: garante que o arquivo pertence ao usuário autenticado
+  const header = parseDLMHeader(dlmBuffer);
+  if (header.version === 2 && header.ownerAddress.toLowerCase() !== userAddr.toLowerCase()) {
+    return res.status(403).json({
+      error: `Arquivo pertence a ${header.ownerAddress.slice(0, 10)}...${header.ownerAddress.slice(-6)}.`,
+    });
+  }
+
+  // Descriptografa com chave do dono atual
+  const { pdf } = decryptAny(dlmBuffer, userAddr);
+
+  // Re-encripta com chave derivada do novo dono
+  const newDlm = encryptToDLMv2(pdf, licenseId, newOwnerAddress.toLowerCase());
+
+  res.json({
+    dlmBase64:       newDlm.toString("base64"),
+    licenseId,
+    newOwnerAddress: newOwnerAddress.toLowerCase(),
+    version:         2,
+    size:            newDlm.length,
   });
 }));
 
@@ -246,23 +372,52 @@ router.post("/publisher/books/:bookId/mint", requireAuth, wrap(async (req, res) 
   res.status(201).json({ message: "Licença emitida.", ...result });
 }));
 
-/** POST /publisher/encrypt — encripta PDF base64 → .dlm base64 */
+/**
+ * POST /publisher/books/:bookId/upload — armazena PDF no servidor para geração
+ * de .dlm on-demand. Body: { pdfBase64: string }
+ */
+router.post("/publisher/books/:bookId/upload", requireAuth, wrap(async (req, res) => {
+  const { pdfBase64 } = req.body;
+  if (!pdfBase64) return res.status(400).json({ error: "pdfBase64 é obrigatório." });
+
+  const bookId    = req.params.bookId;
+  const pdfBuffer = Buffer.from(pdfBase64, "base64");
+  storePDF(bookId, pdfBuffer);
+  const hash = sha256Hex(pdfBuffer);
+
+  res.json({ message: "PDF armazenado com sucesso.", bookId, contentHash: hash });
+}));
+
+/**
+ * POST /publisher/encrypt — encripta PDF base64 → .dlm base64.
+ * Se ownerAddress fornecido: gera v2 (owner-bound).
+ * Se omitido:               gera v1 (legado, sem vínculo de carteira).
+ */
 router.post("/publisher/encrypt", requireAuth, wrap(async (req, res) => {
-  const { pdfBase64, licenseId } = req.body;
+  const { pdfBase64, licenseId, ownerAddress } = req.body;
   if (!pdfBase64 || !licenseId) {
     return res.status(400).json({ error: "pdfBase64 e licenseId são obrigatórios." });
   }
 
-  const { encryptToDLM } = await import("../services/encryptionService.js");
   const pdfBuffer = Buffer.from(pdfBase64, "base64");
-  const dlmBuffer = encryptToDLM(pdfBuffer, licenseId);
   const hash      = sha256Hex(pdfBuffer);
 
+  let dlmBuffer, version;
+  if (ownerAddress) {
+    dlmBuffer = encryptToDLMv2(pdfBuffer, licenseId, ownerAddress);
+    version   = 2;
+  } else {
+    dlmBuffer = encryptToDLM(pdfBuffer, licenseId);
+    version   = 1;
+  }
+
   res.json({
-    dlmBase64:   dlmBuffer.toString("base64"),
-    contentHash: hash,
+    dlmBase64:    dlmBuffer.toString("base64"),
+    contentHash:  hash,
     licenseId,
-    size:        dlmBuffer.length,
+    ownerAddress: ownerAddress || null,
+    version,
+    size:         dlmBuffer.length,
   });
 }));
 
