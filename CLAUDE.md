@@ -74,14 +74,27 @@ The server **always starts** regardless of blockchain status; mode is reported a
 3. Returns `{ granted, txHash, sessionKey, sessionNonce, expiresAt }`.
 
 ### Encryption Service (`server/src/services/encryptionService.js`)
-`.dlm` file format (binary):
+
+**Formato v3 (padrão atual — cadeia de custódia + número verificador):**
 ```
-[MAGIC 4B: "DLM\x01"][licenseId 8B uint64 BE][IV 16B][HMAC-SHA256 32B][ciphertext NB]
+[MAGIC 4B: "DLM\x03"][licenseId 8B][ownerAddr 42B][IV 16B][HMAC 32B][ciphertext NB]
+ciphertext = AES-256-CBC(verifyCode 4B || pdf NB)
+verifyCode = SHA256(pdf)[0:4]  — valida decriptação sem expor conteúdo
+ownerAddr  = endereço de quem cifrou o arquivo (pode diferir do dono atual)
 ```
-- Key is **never stored in the file**. It is derived per `licenseId` using HKDF-SHA256 from `MASTER_ENCRYPTION_KEY`.
-- `encryptToDLM(pdfBuffer, licenseId)` → `.dlm` Buffer.
-- `decryptDLM(dlmBuffer)` → `{ pdf, licenseId }`, verifies HMAC with `timingSafeEqual` before decrypting.
-- `generateSessionKey(licenseId, nonce)` is used for the ephemeral key returned to the client — it is a second HMAC layer on top of the HKDF key, scoped to one session nonce.
+
+**Formatos legados (leitura apenas):**
+- v1: `[DLM\x01][licenseId 8B][IV 16B][HMAC 32B][ciphertext NB]`
+- v2: `[DLM\x02][licenseId 8B][ownerAddr 42B][IV 16B][HMAC 32B][ciphertext NB]`
+
+**Funções v3:**
+- `encryptToDLMv3(pdfBuffer, licenseId, ownerAddress)` → `.dlm` Buffer
+- `tryDecryptV3WithAddress(dlmBuffer, candidateAddress)` → `{ pdf, licenseId }` ou `null`
+- `decryptDLMv3WithChain(dlmBuffer, candidateAddresses[])` → itera todos até achar a chave correta
+
+**Novos serviços:**
+- `licenseRegistryService.js` — CRUD de `storage/licenses/{licenseId}.json` (cadeia de custódia)
+- `userRegistryService.js` — CRUD de `storage/users.json` (endereço → nome + CPF)
 
 ### Client (`client/`)
 Static HTML + `DLMViewer.js`. Runs in the browser, uses MetaMask for wallet signing and PDF.js for rendering. Decrypts the `.dlm` file **in memory** using the session key returned by the server — the PDF is never written to disk.
@@ -162,9 +175,11 @@ Skills active for this project (invoke with `/skill-name`):
 
 ### Revisão obrigatória ao final de cada sessão
 
+**Regra de segurança: após qualquer alteração no projeto, o agente de segurança é responsável por verificar todo o sistema (encryptionService, licenseRegistry, userRegistry, rotas DRM, assinaturas MetaMask) antes do commit.**
+
 **Após terminar qualquer conjunto de alterações**, Claude deve executar a seguinte sequência de revisão antes de encerrar a sessão:
 
-1. **`/security-review`** — revisar todo código tocado que envolva autenticação, criptografia ou contrato inteligente. Verificar: timing attacks, uso correto de `timingSafeEqual`, validade dos JWTs, exposição acidental de chaves.
+1. **`/security-review`** — revisar todo código tocado que envolva autenticação, criptografia ou contrato inteligente. Verificar: timing attacks, uso correto de `timingSafeEqual`, validade dos JWTs, exposição acidental de chaves, janela de assinatura MetaMask.
 2. **`/review`** — revisão geral do estado do branch: arquivos modificados, coerência entre implementação e testes, qualidade dos commits.
 3. **Checklist manual rápido:**
    - [ ] `artigo_dlm_v5.tex` está em sincronia com o código? (seções Desenvolvimento e Resultados)

@@ -21,9 +21,25 @@
  * │ ciphertext NB                                          │
  * └───────────────────────────────────────────────────────┘
  *
- * No v2 a chave é HKDF(MASTER, "dlm-v2-enc:licenseId:owner).
- * Sem o ownerAddress correto é matematicamente impossível derivar
- * a mesma chave — demo mode e carteiras erradas não conseguem abrir.
+ * Formato v3 (cadeia de custódia + número verificador):
+ * ┌───────────────────────────────────────────────────────┐
+ * │ MAGIC      4B : "DLM\x03"                             │
+ * │ licenseId  8B : uint64 big-endian                      │
+ * │ ownerAddr 42B : endereço de quem cifrou este arquivo   │
+ * │ IV        16B : AES-256-CBC IV                         │
+ * │ HMAC      32B : HMAC-SHA256(licId+owner+IV+cipher)     │
+ * │ ciphertext NB : AES-256-CBC(verifyCode 4B || pdf NB)  │
+ * └───────────────────────────────────────────────────────┘
+ *
+ * No v3:
+ *  - verifyCode = SHA256(pdf)[0:4] pré-pendido ao plaintext antes de cifrar.
+ *    Após decifrar, recomputa-se SHA256(pdf)[0:4] e compara com o armazenado
+ *    para confirmar que a chave correta foi usada (sem vazar o conteúdo).
+ *  - ownerAddr no cabeçalho identifica QUEM cifrou o arquivo (pode diferir do
+ *    dono atual na blockchain após transferência). O servidor itera pelo
+ *    histórico de donos até encontrar a chave que satisfaz o verifyCode.
+ *  - A chave de cifragem é HKDF(MASTER, "dlm-v3-enc:licenseId:ownerAddr").
+ *    Sem o MASTER_ENCRYPTION_KEY do servidor nenhum terceiro consegue derivá-la.
  */
 
 import crypto from "crypto";
@@ -34,8 +50,10 @@ import { fileURLToPath } from "url";
 const __dirname  = path.dirname(fileURLToPath(import.meta.url));
 const MAGIC_V1   = Buffer.from([0x44, 0x4C, 0x4D, 0x01]); // "DLM\x01"
 const MAGIC_V2   = Buffer.from([0x44, 0x4C, 0x4D, 0x02]); // "DLM\x02"
+const MAGIC_V3   = Buffer.from([0x44, 0x4C, 0x4D, 0x03]); // "DLM\x03"
 const OWNER_LEN  = 42;
 const ALGO       = "aes-256-cbc";
+const VERIFY_LEN = 4; // bytes do código verificador (SHA256(pdf)[0:4])
 
 // Diretórios de armazenamento (criados automaticamente)
 const STORAGE_ROOT = path.resolve(__dirname, "../../../storage");
@@ -81,13 +99,14 @@ function deriveMACKeyV2(licenseId, ownerAddress) {
 export function parseDLMHeader(buf) {
   const isV1 = buf.subarray(0, 4).equals(MAGIC_V1);
   const isV2 = buf.subarray(0, 4).equals(MAGIC_V2);
-  if (!isV1 && !isV2) throw new Error("Formato .dlm inválido: magic incorreto.");
+  const isV3 = buf.subarray(0, 4).equals(MAGIC_V3);
+  if (!isV1 && !isV2 && !isV3) throw new Error("Formato .dlm inválido: magic incorreto.");
 
   const licenseId = buf.readBigUInt64BE(4).toString();
   if (isV1) return { version: 1, licenseId, ownerAddress: null };
 
   const ownerAddress = buf.subarray(12, 54).toString("ascii").replace(/\0/g, "").trim();
-  return { version: 2, licenseId, ownerAddress };
+  return { version: isV3 ? 3 : 2, licenseId, ownerAddress };
 }
 
 // ── Criptografia v1 (mantido para compatibilidade) ────────
@@ -206,6 +225,120 @@ export function decryptAny(dlmBuffer, connectedAddress) {
   const { version } = parseDLMHeader(dlmBuffer);
   if (version === 1) return decryptDLM(dlmBuffer);
   return decryptDLMv2(dlmBuffer, connectedAddress);
+}
+
+// ── Criptografia v3 (cadeia de custódia + verificador) ───
+
+function deriveEncKeyV3(licenseId, ownerAddress) {
+  const info = Buffer.from(`dlm-v3-enc:${licenseId}:${ownerAddress.toLowerCase()}`);
+  return crypto.hkdfSync("sha256", masterKey(), Buffer.alloc(32), info, 32);
+}
+
+function deriveMACKeyV3(licenseId, ownerAddress) {
+  const info = Buffer.from(`dlm-v3-mac:${licenseId}:${ownerAddress.toLowerCase()}`);
+  return crypto.hkdfSync("sha256", masterKey(), Buffer.alloc(32), info, 32);
+}
+
+/**
+ * Encripta PDF no formato v3, vinculando ao ownerAddress e embutindo
+ * um código verificador (SHA256(pdf)[0:4]) que permite validar a
+ * decriptação sem expor o conteúdo.
+ *
+ * @param {Buffer} pdfBuffer
+ * @param {string|number} licenseId
+ * @param {string} ownerAddress - endereço Ethereum "0x..." de quem cifra
+ * @returns {Buffer} arquivo .dlm v3
+ */
+export function encryptToDLMv3(pdfBuffer, licenseId, ownerAddress) {
+  const owner = ownerAddress.toLowerCase();
+  if (!/^0x[0-9a-f]{40}$/.test(owner)) throw new Error("ownerAddress inválido.");
+
+  // Código verificador: primeiros 4 bytes do SHA256 do PDF original
+  const verifyCode = crypto.createHash("sha256").update(pdfBuffer).digest().subarray(0, VERIFY_LEN);
+  const plaintext  = Buffer.concat([verifyCode, pdfBuffer]);
+
+  const encKey     = deriveEncKeyV3(licenseId, owner);
+  const macKey     = deriveMACKeyV3(licenseId, owner);
+  const iv         = crypto.randomBytes(16);
+  const cipher     = crypto.createCipheriv(ALGO, encKey, iv);
+  const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+
+  const licIdBuf = Buffer.alloc(8);
+  licIdBuf.writeBigUInt64BE(BigInt(licenseId));
+  const ownerBuf = Buffer.alloc(OWNER_LEN);
+  Buffer.from(owner).copy(ownerBuf);
+
+  const hmac = crypto.createHmac("sha256", macKey)
+    .update(Buffer.concat([licIdBuf, ownerBuf, iv, ciphertext])).digest();
+
+  return Buffer.concat([MAGIC_V3, licIdBuf, ownerBuf, iv, hmac, ciphertext]);
+}
+
+/**
+ * Tenta descriptografar um .dlm v3 usando as chaves derivadas de candidateAddress.
+ * Retorna { pdf, licenseId } se bem-sucedido; null se a chave não corresponde.
+ *
+ * @param {Buffer} dlmBuffer
+ * @param {string} candidateAddress - endereço a testar
+ * @returns {{ pdf: Buffer, licenseId: string }|null}
+ */
+export function tryDecryptV3WithAddress(dlmBuffer, candidateAddress) {
+  if (!dlmBuffer.subarray(0, 4).equals(MAGIC_V3)) return null;
+
+  const licenseId  = dlmBuffer.readBigUInt64BE(4).toString();
+  const owner      = candidateAddress.toLowerCase();
+  const licIdBuf   = dlmBuffer.subarray(4, 12);
+  const ownerBuf   = dlmBuffer.subarray(12, 54);
+  const iv         = dlmBuffer.subarray(54, 70);
+  const storedHmac = dlmBuffer.subarray(70, 102);
+  const ciphertext = dlmBuffer.subarray(102);
+
+  const encKey = deriveEncKeyV3(licenseId, owner);
+  const macKey = deriveMACKeyV3(licenseId, owner);
+
+  // HMAC calculado com as chaves do candidato
+  const hmac = crypto.createHmac("sha256", macKey)
+    .update(Buffer.concat([licIdBuf, ownerBuf, iv, ciphertext])).digest();
+
+  if (!crypto.timingSafeEqual(storedHmac, hmac)) return null;
+
+  try {
+    const decipher  = crypto.createDecipheriv(ALGO, encKey, iv);
+    const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+
+    const storedCode   = plaintext.subarray(0, VERIFY_LEN);
+    const pdf          = plaintext.subarray(VERIFY_LEN);
+    const expectedCode = crypto.createHash("sha256").update(pdf).digest().subarray(0, VERIFY_LEN);
+
+    // Código verificador garante que a decriptação produziu o conteúdo correto
+    if (!storedCode.equals(expectedCode)) return null;
+
+    return { pdf, licenseId };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Descriptografa um .dlm v3 iterando por uma lista de endereços candidatos
+ * (cadeia de custódia) até encontrar a chave correta.
+ *
+ * Uso: candidateAddresses = [encryptedWithAddress, ...histórico reverso]
+ *
+ * @param {Buffer} dlmBuffer
+ * @param {string[]} candidateAddresses - lista de endereços a tentar, em ordem
+ * @returns {{ pdf: Buffer, licenseId: string, decryptedWith: string }}
+ * @throws {Error} se nenhuma chave funcionar
+ */
+export function decryptDLMv3WithChain(dlmBuffer, candidateAddresses) {
+  for (const addr of candidateAddresses) {
+    const result = tryDecryptV3WithAddress(dlmBuffer, addr);
+    if (result) return { ...result, decryptedWith: addr };
+  }
+  throw new Error(
+    "Impossível descriptografar: nenhuma chave da cadeia de custódia corresponde ao arquivo. " +
+    "Verifique se o arquivo .dlm é válido e se a licença está registrada."
+  );
 }
 
 // ── Armazenamento de PDFs (servidor) ─────────────────────

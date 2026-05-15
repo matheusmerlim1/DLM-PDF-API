@@ -1,6 +1,6 @@
-# DLM-PDF — Gestão de Posse Digital de E-books via Blockchain
+# DLM-PDF API — Gestão de Posse Digital de E-books via Blockchain
 
-> Modelo de custódia de autorização para e-books: cada exemplar é um ativo digital único registrado na blockchain Ethereum, com suporte a revenda P2P e empréstimo digital.
+> Plataforma centralizada de DRM para e-books: criptografia, cadeia de custódia e transferência de posse com identificação por nome e CPF. Toda a responsabilidade de criptografia fica na API — os sites clientes apenas chamam os métodos disponíveis.
 
 ---
 
@@ -8,44 +8,129 @@
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                        CLIENTE (Browser)                         │
-│  DLMViewer.js  →  assina com MetaMask  →  abre arquivo .dlm      │
-└───────────────────────────┬──────────────────────────────────────┘
-                            │ HTTPS + JWT
-┌───────────────────────────▼──────────────────────────────────────┐
-│              SERVIDOR DE AUTENTICAÇÃO (Node.js/Express)          │
-│  POST /api/v1/licenses/:id/open  →  valida via Smart Contract    │
-│  GET  /api/v1/auth/challenge     →  emite nonce para assinatura  │
-└───────────────────────────┬──────────────────────────────────────┘
-                            │ ethers.js / JSON-RPC
-┌───────────────────────────▼──────────────────────────────────────┐
-│            SMART CONTRACT (Solidity 0.8.20 / Ethereum)           │
-│  DLMPDFLicense.sol:                                              │
-│    validateAccess()  →  registra evento on-chain                 │
-│    checkAccess()     →  leitura view (sem gas)                   │
-│    transferLicense() →  revenda P2P com royalty                  │
-│    lendLicense()     →  empréstimo temporário                    │
+│            Livraria DLM (client)          DML-PDF Platform       │
+│  usa: POST /encrypt, POST /transfer   usa: POST /decrypt         │
+└────────────────┬──────────────────────────────┬─────────────────┘
+                 │          HTTPS / JSON         │
+┌────────────────▼──────────────────────────────▼─────────────────┐
+│                    DLM PDF API  (este servidor)                  │
+│                                                                  │
+│  ── Métodos DRM (sem JWT, auth por assinatura MetaMask) ──       │
+│  POST /api/v1/encrypt          cifra PDF v3 + registra titular   │
+│  POST /api/v1/decrypt          decifra com cadeia de custódia    │
+│  POST /api/v1/transfer/preview consulta nome+CPF do destinatário │
+│  POST /api/v1/transfer         transfere posse da licença        │
+│  POST /api/v1/users/register   cadastra endereço → nome + CPF   │
+│  GET  /api/v1/users/:address   consulta usuário por endereço     │
+│                                                                  │
+│  ── Auth JWT (blockchain) ──                                     │
+│  GET  /api/v1/auth/challenge   nonce para MetaMask               │
+│  POST /api/v1/auth/login       emite JWT                         │
+│  POST /api/v1/licenses/:id/open  valida via Smart Contract       │
+└────────────────────────────────┬────────────────────────────────┘
+                                 │ ethers.js / JSON-RPC
+┌────────────────────────────────▼────────────────────────────────┐
+│           SMART CONTRACT (Solidity 0.8.20 / Ethereum)            │
+│  DLMPDFLicense.sol:  validateAccess, transferLicense, lendLicense│
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-### Fluxo de leitura de um e-book
+---
+
+## Métodos DRM — Referência Rápida
+
+### POST `/api/v1/encrypt`
+Encripta um PDF no formato `.dlm v3` e registra o titular inicial.
+
+```json
+// Body (JSON)
+{
+  "pdfBase64":  "<PDF em base64>",
+  "publicKey":  "0x...",
+  "userName":   "João Silva",
+  "userCPF":    "123.456.789-00",
+  "licenseId":  "opcional — gerado automaticamente se ausente"
+}
+
+// Resposta 200
+{
+  "dlmBase64":  "<.dlm v3 em base64>",
+  "licenseId":  "12345678",
+  "contentHash":"0x...",
+  "version":    3,
+  "owner":      { "address": "0x...", "name": "João Silva", "cpf": "123.456.789-00" }
+}
+```
+
+### POST `/api/v1/decrypt`
+Decifra um `.dlm v3` usando cadeia de custódia e re-cifra para o dono atual.
+
+Itera por todos os donos históricos até encontrar a chave que satisfaz o **número verificador** (`SHA256(pdf)[0:4]` embutido no ciphertext).
+
+```json
+// Body (JSON)
+{
+  "dlmBase64":  "<.dlm em base64>",
+  "publicKey":  "0x...",
+  "signature":  "<assinatura MetaMask>",
+  "message":    "DLM:decrypt:12345678:1716000000000"
+}
+
+// Resposta 200
+{
+  "pdfBase64":    "<PDF em base64>",
+  "dlmBase64":    "<novo .dlm re-cifrado para o dono atual>",
+  "licenseId":    "12345678",
+  "decryptedWith":"0x...",
+  "owner":        { "address": "0x...", "name": "...", "cpf": "..." }
+}
+```
+
+### POST `/api/v1/transfer/preview`
+Consulta nome e CPF do destinatário antes da confirmação da transferência.
+
+```json
+// Body (JSON)
+{ "toPublicKey": "0x...", "licenseId": "12345678" }
+
+// Resposta 200
+{
+  "newOwner":     { "address": "0x...", "name": "Maria Santos", "cpf": "987.654.321-00" },
+  "currentOwner": { "address": "0x..." },
+  "licenseId":    "12345678"
+}
+```
+
+### POST `/api/v1/transfer`
+Executa a transferência de posse. O arquivo `.dlm` será re-cifrado com as chaves do novo dono na próxima chamada a `/decrypt`.
+
+```json
+// Body (JSON)
+{
+  "fromPublicKey": "0x...",
+  "toPublicKey":   "0x...",
+  "licenseId":     "12345678",
+  "signature":     "<assinatura MetaMask do cedente>",
+  "message":       "DLM:transfer:12345678:1716000000000"
+}
+```
+
+---
+
+## Formato do arquivo `.dlm v3`
 
 ```
-1. Usuário abre arquivo .dlm  →  browser extrai licenseId do header
-2. Usuário clica "Abrir"      →  DLMViewer assina nonce com MetaMask
-3. Servidor autentica JWT     →  chama validateAccess() on-chain
-4. Blockchain retorna true    →  servidor gera sessionKey efêmera
-5. Browser decripta .dlm      →  PDF em memória (AES-256-CBC)
-6. PDF.js renderiza           →  usuário lê o e-book
+[MAGIC      4B : "DLM\x03"                           ]
+[licenseId  8B : uint64 big-endian                   ]
+[ownerAddr 42B : endereço Ethereum ASCII do cifrador  ]
+[IV        16B : AES-256-CBC IV                       ]
+[HMAC      32B : HMAC-SHA256(licId+ownerAddr+IV+ct)  ]
+[ciphertext NB : AES-256-CBC(verifyCode 4B || pdf NB)]
 ```
 
-### Formato do arquivo `.dlm`
+**Número verificador** (`verifyCode`): `SHA256(pdf)[0:4]` pré-pendido ao plaintext antes de cifrar. Após decifrar, recomputa-se e compara — garante que a chave correta foi usada sem expor o conteúdo. Funciona como o dígito verificador do CPF.
 
-```
-[MAGIC 4B: "DLM\x01"][licenseId 8B][IV 16B][HMAC-SHA256 32B][ciphertext NB]
-```
-
-A chave AES **não é armazenada no arquivo**. Ela é derivada via HKDF do segredo mestre + licenseId. Copiar o arquivo sem a licença não abre nada.
+**Cadeia de custódia**: ao decifrar, o servidor tenta as chaves na ordem `[encryptedWithAddress, ...histórico reverso]` até o `verifyCode` conferir. Re-cifra automaticamente com a chave do dono atual e atualiza o registro.
 
 ---
 
