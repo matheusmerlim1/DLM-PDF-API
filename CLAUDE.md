@@ -177,6 +177,8 @@ Skills active for this project (invoke with `/skill-name`):
 
 **Regra de segurança: após qualquer alteração no projeto, o agente de segurança é responsável por verificar todo o sistema (encryptionService, licenseRegistry, userRegistry, rotas DRM, assinaturas MetaMask) antes do commit.**
 
+**Regra de erros: sempre que um erro for encontrado e corrigido, um teste automatizado ou cenário de teste referente a ele deve ser criado imediatamente. Não corrigir sem testar.**
+
 **Após terminar qualquer conjunto de alterações**, Claude deve executar a seguinte sequência de revisão antes de encerrar a sessão:
 
 1. **`/security-review`** — revisar todo código tocado que envolva autenticação, criptografia ou contrato inteligente. Verificar: timing attacks, uso correto de `timingSafeEqual`, validade dos JWTs, exposição acidental de chaves, janela de assinatura MetaMask.
