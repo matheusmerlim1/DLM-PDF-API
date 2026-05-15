@@ -23,11 +23,11 @@
 \maketitle
 
 \begin{abstract}
-This paper proposes DLM-PDF, a web-based digital ownership platform for e-books using Blockchain technology. The system enables users to resell and lend digital books — rights widely available in physical markets but blocked by traditional DRM systems. Unlike approaches that protect the file itself, DLM-PDF protects only the access authorization, verified in real time by a smart contract deployed on the Ethereum network. All cryptographic operations are centralized in a dedicated DRM API that implements three core methods: encrypt (creates a \texttt{.dlm v3} file, binds it to the holder via HKDF-SHA-256, and registers the owner's name and national ID in a custody chain), decrypt (iterates historical keys until a built-in verification code confirms the correct key, then re-encrypts for the current owner), and transfer (validates a MetaMask signature and updates the custody record). A test suite of 40 automated tests covered license registration, minting, access validation, P2P transfer, digital lending, AES-256-CBC encryption, HMAC integrity verification, and the full v3 DRM chain — all passing. The complete authentication handshake averaged 1.26 ms in isolation; with local JSON-RPC latency (Ganache), the total open cycle reaches approximately 1.2 seconds per operation. The main limitation is the need for internet connectivity during the access handshake, since decryption keys are derived server-side. The server runs in production on Railway; a companion storefront (Livraria DLM) published on GitHub Pages demonstrates the full purchase and access flow against the live API.
+This paper proposes DLM-PDF, a web-based digital ownership platform for e-books using Blockchain technology. The system enables users to resell and lend digital books — rights widely available in physical markets but blocked by traditional DRM systems. Unlike approaches that protect the file itself, DLM-PDF protects only the access authorization, verified in real time by a smart contract deployed on the Ethereum network. A test suite of 31 automated tests covered license registration, minting, access validation, P2P transfer, digital lending, AES-256-CBC encryption, and HMAC integrity verification — all passing. The complete authentication handshake averaged 1.26 ms in isolation; with local JSON-RPC latency (Ganache), the total open cycle reaches approximately 1.2 seconds per operation. The main limitation is the need for continuous internet connectivity, since the decryption key is never stored locally. The server runs in production on Railway; a companion storefront (Livraria DLM) published on GitHub Pages demonstrates the full purchase and access flow against the live API.
 \end{abstract}
 
 \begin{resumo}
-Este trabalho propõe o DLM-PDF, uma plataforma web de posse digital para e-books baseada em Blockchain. O sistema permite que usuários revendam e emprestem livros digitais — direitos comuns no mercado físico, mas bloqueados pelos sistemas de DRM tradicionais. Diferente de abordagens que protegem o arquivo em si, o DLM-PDF protege apenas a autorização de acesso, verificada em tempo real por um contrato inteligente na rede Ethereum. Toda a criptografia é centralizada em uma API DRM dedicada que expõe três métodos principais: encriptar (gera um \texttt{.dlm v3} vinculado ao titular via HKDF-SHA-256, com registro de nome e CPF em uma cadeia de custódia), decriptar (itera as chaves históricas até que um código verificador — análogo ao dígito verificador do CPF — confirme a chave correta, re-cifrando para o dono atual) e transferir (valida assinatura MetaMask e atualiza o registro de posse). Uma suíte de 40 testes automatizados cobriu registro de livro, emissão de licença, validação de acesso, transferência P2P, empréstimo digital, cifragem AES-256-CBC, verificação HMAC e a cadeia completa DRM v3 — todos aprovados. O handshake de autenticação completo apresentou média de 1,26 ms em execução isolada; com latência JSON-RPC local (Ganache), o ciclo total de abertura chega a aproximadamente 1,2 segundos por operação. A principal limitação é a necessidade de conectividade durante o handshake, pois as chaves são derivadas no servidor. O servidor está implantado em produção no Railway; a vitrine complementar Livraria DLM, publicada no GitHub Pages, demonstra o fluxo completo de compra e acesso contra a API ao vivo.
+Este trabalho propõe o DLM-PDF, uma plataforma web de posse digital para e-books baseada em Blockchain. O sistema permite que usuários revendam e emprestem livros digitais — direitos comuns no mercado físico, mas bloqueados pelos sistemas de DRM tradicionais. Diferente de abordagens que protegem o arquivo em si, o DLM-PDF protege apenas a autorização de acesso, verificada em tempo real por um contrato inteligente na rede Ethereum. Uma suíte de 31 testes automatizados cobriu registro de livro, emissão de licença, validação de acesso, transferência P2P, empréstimo digital, cifragem AES-256-CBC e verificação HMAC — todos aprovados. O handshake de autenticação completo apresentou média de 1,26 ms em execução isolada; com latência JSON-RPC local (Ganache), o ciclo total de abertura chega a aproximadamente 1,2 segundos por operação. A principal limitação é a necessidade de conectividade contínua, pois a chave de decriptografia nunca é armazenada localmente. O servidor está implantado em produção no Railway; a vitrine complementar Livraria DLM, publicada no GitHub Pages, demonstra o fluxo completo de compra e acesso contra a API ao vivo.
 \end{resumo}
 
 % ============================================================
@@ -188,19 +188,19 @@ A diferença em relação aos NFTs convencionais merece atenção. Em sistemas N
 
 \subsection{Implementação}
 
-O sistema é composto por quatro camadas que se comunicam por meio de APIs RESTful, ilustradas na Figura~\ref{fig:arquitetura}.
+O sistema é composto por três camadas que se comunicam por meio de APIs RESTful, ilustradas na Figura~\ref{fig:arquitetura}.
 
 \begin{figure}[H]
 \centering
 % INSERIR DIAGRAMA DE ARQUITETURA:
-% Quatro blocos: Livraria DLM e DML-PDF Platform → DLM PDF API → Smart Contract
-%   [Livraria DLM (vitrine)]     [DML-PDF Platform (leitor)]
-%       ↕  HTTPS (encrypt, decrypt, transfer)
-%   [DLM PDF API — Oráculo + DRM centralizado]
+% Três blocos empilhados verticalmente:
+%   [Cliente Web: DLMViewer.js + MetaMask]
+%       ↕  HTTPS + JWT
+%   [Servidor Node.js/Express — Oráculo]
 %       ↕  JSON-RPC (ethers.js)
 %   [Smart Contract Ethereum — DLMPDFLicense.sol]
-\fbox{\parbox{0.8\textwidth}{\centering\vspace{2cm}[INSERIR: diagrama de arquitetura em quatro camadas]\vspace{2cm}}}
-\caption{Arquitetura do sistema DLM-PDF com criptografia centralizada na API DRM}
+\fbox{\parbox{0.8\textwidth}{\centering\vspace{2cm}[INSERIR: diagrama de arquitetura em três camadas]\vspace{2cm}}}
+\caption{Arquitetura do sistema DLM-PDF}
 \label{fig:arquitetura}
 \end{figure}
 
@@ -233,47 +233,33 @@ A API expõe os seguintes endpoints principais:
     \item \texttt{GET /wallet/:address} — endpoint público, sem autenticação; lista todas as licenças e metadados dos livros vinculados a um endereço Ethereum qualquer.
 \end{itemize}
 
-A camada superior é o \textbf{Cliente Web}, executado no navegador do usuário. Dois clientes distintos consomem a mesma API DRM: a \textbf{Livraria DLM} (\url{https://matheusmerlim1.github.io/trabalho-nilson/}), vitrine de compra publicada no GitHub Pages, e a \textbf{DML-PDF Platform}, leitor de e-books que recebe o arquivo \texttt{.dlm}, conecta o MetaMask e solicita a decriptografia ao servidor. Em ambos os casos, o PDF em texto claro nunca é armazenado no disco do usuário — ele é renderizado em memória pela biblioteca PDF.js e descartado ao fechar a aba.
-
-\paragraph{API DRM centralizada — três métodos.}
-Uma segunda camada de serviço, a \textbf{DLM PDF API}, concentra toda a criptografia para garantir que clientes diferentes usem exatamente o mesmo esquema de proteção. Ela expõe três métodos DRM autenticados via assinatura MetaMask (sem JWT):
-
-\begin{itemize}
-    \item \texttt{POST /encrypt} — recebe PDF em base64, endereço Ethereum, nome completo e CPF do titular. Gera o arquivo \texttt{.dlm v3}, registra o usuário no repositório de usuários e cria o registro de cadeia de custódia da licença.
-    \item \texttt{POST /decrypt} — recebe o arquivo \texttt{.dlm}, o endereço e uma assinatura MetaMask com janela de 5 minutos. Verifica que o solicitante é o titular atual no registro de custódia. Monta a lista de candidatos (\texttt{encryptedWithAddress} + histórico reverso) e itera as chaves HKDF até que o \textbf{código verificador} (\texttt{SHA256(pdf)[0:4]}, análogo ao dígito verificador do CPF) confirme a chave correta. Re-cifra automaticamente para o dono atual e atualiza o registro.
-    \item \texttt{POST /transfer} — valida a assinatura MetaMask do cedente, verifica que o destinatário está cadastrado com nome e CPF, e transfere a posse no registro de custódia. O \texttt{.dlm} é re-cifrado para o novo dono na próxima chamada a \texttt{/decrypt}.
-\end{itemize}
-
-Um quarto endpoint auxiliar, \texttt{POST /transfer/preview}, permite que o remetente consulte o nome e CPF do destinatário antes de confirmar a transferência — sem executar nenhuma modificação.
+A camada superior é o \textbf{Cliente Web} (\texttt{client/DLMViewer.js}), executado no navegador do usuário. Ele lê apenas os primeiros 28 bytes do arquivo \texttt{.dlm} para extrair o \texttt{licenseId}, conduz o processo de autenticação com MetaMask, recebe a chave de sessão e decripta o arquivo em memória com a Web Crypto API nativa do navegador. O PDF é renderizado pela biblioteca PDF.js. Ao fechar a aba, o conteúdo é descartado — nada é gravado em disco.
 
 \paragraph{Reforço de segurança e implantação em produção.}
-Quatro vulnerabilidades foram encontradas e corrigidas nos testes de integração, antes do deploy. Primeiro, a validação do desafio de autenticação comparava só o nonce — a mensagem completa assinada não era verificada, abrindo espaço para replay com nonce válido. Corrigimos armazenando e comparando a mensagem integral em \texttt{challengeCache}. Segundo, respostas com status 401 devolviam o texto da exceção interna ao cliente, vazando informação desnecessária. Terceiro, o serviço de encriptação aceitava iniciar com \texttt{MASTER\_ENCRYPTION\_KEY} ausente, derivando chaves inválidas sem aviso. Quarto, arquivos criados pelo fluxo antigo (v1, sem vínculo de proprietário) não conseguiam ser lidos pelo leitor porque a rota \texttt{/licenses/:id/read} exigia validação blockchain inexistente para esses \texttt{licenseId}s — corrigido migrando o publisher para o método \texttt{/encrypt} v3 e adicionando o fluxo \texttt{openV3()} no leitor, que consulta o registro de custódia em vez da blockchain.
+Três vulnerabilidades foram encontradas e corrigidas nos testes de integração com o cliente web, antes do deploy. Primeiro, a validação do desafio de autenticação comparava só o nonce — a mensagem completa assinada não era verificada, o que deixava espaço pra um replay com nonce válido mas contexto diferente. Corrigimos armazenando e comparando a mensagem integral em \texttt{challengeCache}. Segundo, respostas com status 401 devolviam o texto da exceção interna ao cliente, vazando informação que não precisa sair do servidor. Terceiro, o serviço de encriptação aceitava iniciar com \texttt{MASTER\_ENCRYPTION\_KEY} ausente ou com comprimento errado, derivando chaves inválidas sem aviso. Os três pontos agora falham de forma explícita no startup ou na primeira chamada afetada.
 
-O servidor está em produção no Railway (\url{https://dlm-pdf-server-production.up.railway.app/api/v1}). O endpoint \texttt{GET /wallet/:address} permite que a vitrine consulte quais licenças uma carteira já possui antes de exibir o botão de compra, evitando duplicações sem exigir login prévio.
+O servidor está em produção no Railway (\url{https://dlm-pdf-server-production.up.railway.app/api/v1}). Junto a ele, publicamos a Livraria DLM no GitHub Pages (\url{https://matheusmerlim1.github.io/trabalho-nilson/}), uma vitrine que consome a mesma API e demonstra o fluxo de descoberta, compra e abertura de e-books com MetaMask. O endpoint \texttt{GET /wallet/:address} foi pensado especificamente pra esse cenário: antes de exibir o botão de compra, a vitrine consulta quais licenças uma carteira já possui — evitando compra duplicada sem exigir login prévio.
 
-O arquivo \texttt{.dlm v3} tem a seguinte estrutura binária, ilustrada na Figura~\ref{fig:dlm}:
+O arquivo \texttt{.dlm} tem a seguinte estrutura binária, ilustrada na Figura~\ref{fig:dlm}:
 
 \begin{verbatim}
-[ MAGIC      4B : "DLM\x03"                              ]
-[ licenseId  8B : uint64 big-endian                       ]
-[ ownerAddr 42B : endereco Ethereum ASCII do cifrador     ]
-[ IV        16B : vetor de inicializacao AES-256-CBC      ]
-[ HMAC      32B : HMAC-SHA-256(licId+ownerAddr+IV+cipher) ]
-[ ciphertext NB : AES-256-CBC(verifyCode 4B || pdf NB)   ]
+[ MAGIC      4B : "DLM\x01"                         ]
+[ licenseId  8B : uint64 big-endian                  ]
+[ IV        16B : vetor de inicializacao AES          ]
+[ HMAC      32B : SHA-256 de (licenseId + IV + cipher)]
+[ ciphertext NB : conteudo AES-256-CBC                ]
 \end{verbatim}
 
 \begin{figure}[H]
 \centering
-% INSERIR: diagrama visual do formato binário .dlm v3
+% INSERIR: diagrama visual do formato binário .dlm
 % (blocos coloridos com os campos e tamanhos)
-\fbox{\parbox{0.8\textwidth}{\centering\vspace{1.5cm}[INSERIR: diagrama do formato binário .dlm v3]\vspace{1.5cm}}}
-\caption{Estrutura do arquivo \texttt{.dlm v3} com código verificador e endereço do titular}
+\fbox{\parbox{0.8\textwidth}{\centering\vspace{1.5cm}[INSERIR: diagrama do formato binário .dlm]\vspace{1.5cm}}}
+\caption{Estrutura do arquivo \texttt{.dlm}}
 \label{fig:dlm}
 \end{figure}
 
-O campo \textbf{ownerAddr} (42 bytes ASCII) registra diretamente no arquivo qual carteira o cifrou. Isso permite que o leitor identifique o titular sem consultar o servidor, embora a decriptografia sempre exija autenticação. A chave AES não fica no arquivo — ela é derivada via HKDF-SHA-256 a partir da chave mestra do servidor, do \texttt{licenseId} e do endereço do titular: cada combinação (licença, dono) gera uma chave única e determinística.
-
-O \textbf{código verificador} — \texttt{SHA256(pdf)[0:4]} pré-pendido ao plaintext antes de cifrar — funciona como o dígito verificador do CPF: após decifrar, recomputa-se e compara. Se coincidir, a chave usada era a correta; se não, tenta-se o próximo candidato da cadeia de custódia. Isso garante que o servidor identifique a chave certa sem expor o conteúdo do PDF. O campo HMAC garante a integridade do ciphertext: adulteração de qualquer byte resulta em falha antes de qualquer tentativa de decriptografia, conforme o mecanismo de detecção identificado por Dashti et al. (2007).
+A chave AES não fica armazenada no arquivo. Ela é derivada via HKDF-SHA-256 a partir da chave mestra do servidor combinada com o \texttt{licenseId} — cada exemplar tem uma chave única. O campo HMAC garante a integridade: adulteração de qualquer byte no ciphertext resulta em falha imediata antes de qualquer tentativa de decriptografia, conforme o mecanismo de detecção identificado por Dashti et al. (2007).
 
 \subsection{Cenário e Demonstração}
 
@@ -354,7 +340,7 @@ Para demonstrar o funcionamento do sistema, configuramos o seguinte cenário: um
 
 \subsection{Avaliação Técnica}
 
-A avaliação técnica do modelo foi conduzida por meio de uma suíte de 40 testes automatizados em Node.js v22. Os testes cobriram dez categorias: registro de livro, emissão de licença, oráculo de autenticação, transferência P2P, empréstimo digital, devolução de empréstimo, cifragem AES-256-CBC, handshake completo, carga com 100 validações consecutivas e, a partir da segunda fase de desenvolvimento, a cadeia DRM v3 (encriptação, código verificador, decriptografia com lista de candidatos e re-encriptação na transferência). Todos os 40 casos foram aprovados.
+A avaliação técnica do modelo foi conduzida por meio de uma suíte de 31 testes automatizados em Node.js v22. Os testes cobriram nove categorias: registro de livro, emissão de licença, oráculo de autenticação, transferência P2P, empréstimo digital, devolução de empréstimo, cifragem AES-256-CBC, handshake completo e carga com 100 validações consecutivas. Todos os 31 casos foram aprovados.
 
 A Tabela~\ref{tab:tempos} consolida os tempos de execução medidos em ambiente isolado, sem latência de rede.
 
@@ -428,15 +414,14 @@ O código completo do DLM-PDF está disponível publicamente em:
 
 O repositório contém o contrato inteligente (\texttt{contracts/DLMPDFLicense.sol}), os scripts de deploy (\texttt{scripts/deploy.js}), a suíte completa de 31 testes (\texttt{test/DLMPDFLicense.test.js}), o servidor Node.js (\texttt{server/}) e o cliente web (\texttt{client/}). O arquivo \texttt{server/.env.example} documenta todas as variáveis de ambiente necessárias.
 
-Para reproduzir o ambiente localmente, são necessários Node.js 20+ e MetaMask no navegador. O modo demo (\texttt{CONTRACT\_ADDRESS=demo} no \texttt{.env}) permite testar a API sem configurar nenhum nó blockchain — respostas simuladas em memória. Para executar a suíte completa (contrato + servidor DRM):
+Para reproduzir o ambiente localmente, são necessários Node.js 20+ e MetaMask no navegador. O modo demo (\texttt{CONTRACT\_ADDRESS=demo} no \texttt{.env}) permite testar a API sem configurar nenhum nó blockchain — respostas simuladas em memória. Para executar a suíte de testes completa:
 
 \begin{verbatim}
 npm install
-npm run chain:test        # 31 testes do contrato inteligente
-cd server && npm test     # 9 testes DRM v3 (encrypt, decrypt, cadeia)
+npm run chain:test
 \end{verbatim}
 
-Todos os 40 testes passam sem configuração adicional além da variável \texttt{MASTER\_ENCRYPTION\_KEY}. O servidor pode ser iniciado em modo demo com:
+Todos os 31 testes passam sem configuração adicional. O servidor pode ser iniciado em modo demo com:
 
 \begin{verbatim}
 npm run node:install
@@ -455,9 +440,9 @@ A API de produção responde em \url{https://dlm-pdf-server-production.up.railwa
 \section{Conclusão}
 % ============================================================
 
-O DLM-PDF entrega, na prática, o que o mercado digital prometeu mas nunca cumpriu: um e-book que se comporta como um livro físico. Você compra, é seu. Pode revender — o autor recebe royalty automaticamente. Pode emprestar — e enquanto o livro está emprestado, você não consegue abri-lo, exatamente como acontece com um livro de papel.
+O DLM-PDF entrega, na prática, o que o mercado digital prometeu mas nunca cumpriu: um e-book que se comporta como um livro físico. Você compra, é seu. Pode revender — o autor recebe royalty automaticamente. Pode emprestar — e enquanto o livro está emprestado, você não consegue abrí-lo, exatamente como acontece com um livro de papel.
 
-A mudança central é sutil mas significativa: a proteção saiu do arquivo e foi para a autorização de acesso. O arquivo \texttt{.dlm} pode circular livremente pela internet — sem a API DRM confirmar a posse via cadeia de custódia, ele não abre. O formato v3 introduz o endereço do titular diretamente no cabeçalho do arquivo e um código verificador embutido no ciphertext, eliminando a dependência de conexão blockchain para o fluxo de leitura. Isso resolve a tensão tradicional do DRM entre proteção e liberdade: distribuir o arquivo amplamente não representa risco, porque o controle de acesso é externo a ele e vinculado criptograficamente à identidade da carteira.
+A mudança central é sutil mas significativa: a proteção saiu do arquivo e foi para a autorização de acesso. O arquivo \texttt{.dlm} pode circular livremente pela internet — sem o contrato inteligente confirmar a posse, ele não abre. Isso resolve a tensão tradicional do DRM entre proteção e liberdade: distribuir o arquivo amplamente não representa risco, porque o controle de acesso é externo a ele.
 
 Os testes confirmaram a viabilidade técnica. O handshake completo roda em 1,26 ms em ambiente isolado e em cerca de 1,2 segundos incluindo a latência de rede — tempo que o usuário enfrenta uma única vez por sessão de leitura. O custo de gas é compatível com redes de camada 2 para uso em produção.
 
