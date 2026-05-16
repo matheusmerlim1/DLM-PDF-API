@@ -1,0 +1,26 @@
+{
+  "licenseId": "12830232",
+  "currentOwner": {
+    "address": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "name": "Bob Destino",
+    "cpf": "999.888.777-66"
+  },
+  "encryptedWithAddress": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "ownershipHistory": [
+    {
+      "address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "name": "Alice Teste",
+      "cpf": "111.222.333-00",
+      "acquiredAt": "2026-05-15T21:58:48.454Z",
+      "releasedAt": "2026-05-15T21:58:48.458Z"
+    },
+    {
+      "address": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "name": "Bob Destino",
+      "cpf": "999.888.777-66",
+      "acquiredAt": "2026-05-15T21:58:48.458Z",
+      "releasedAt": null
+    }
+  ],
+  "createdAt": "2026-05-15T21:58:48.454Z"
+}

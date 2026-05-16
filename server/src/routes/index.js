@@ -726,34 +726,45 @@ router.post("/publisher/books/:bookId/upload", requireAuth, wrap(async (req, res
 }));
 
 /**
- * POST /publisher/encrypt — encripta PDF base64 → .dlm base64.
- * Se ownerAddress fornecido: gera v2 (owner-bound).
- * Se omitido:               gera v1 (legado, sem vínculo de carteira).
+ * POST /publisher/encrypt — encripta PDF base64 → .dlm v3.
+ *
+ * Sempre cria v3 (owner-bound + código verificador + cadeia de custódia).
+ * ownerAddress: usa o do body se válido; senão usa o endereço autenticado via JWT.
+ *
+ * Bug corrigido (2026-05-15): versões anteriores criavam v1 quando ownerAddress
+ * era omitido, gerando arquivos que exigiam blockchain para abrir.
  */
 router.post("/publisher/encrypt", requireAuth, wrap(async (req, res) => {
-  const { pdfBase64, licenseId, ownerAddress } = req.body;
+  const { pdfBase64, licenseId, ownerAddress: bodyOwner } = req.body;
   if (!pdfBase64 || !licenseId) {
     return res.status(400).json({ error: "pdfBase64 e licenseId são obrigatórios." });
   }
 
+  // Endereço do titular: body > JWT. Nunca cria v1.
+  const ownerAddress = (bodyOwner && /^0x[0-9a-fA-F]{40}$/i.test(bodyOwner))
+    ? bodyOwner.toLowerCase()
+    : req.userAddress.toLowerCase();
+
   const pdfBuffer = Buffer.from(pdfBase64, "base64");
   const hash      = sha256Hex(pdfBuffer);
 
-  let dlmBuffer, version;
-  if (ownerAddress) {
-    dlmBuffer = encryptToDLMv2(pdfBuffer, licenseId, ownerAddress);
-    version   = 2;
-  } else {
-    dlmBuffer = encryptToDLM(pdfBuffer, licenseId);
-    version   = 1;
-  }
+  const dlmBuffer = encryptToDLMv3(pdfBuffer, licenseId, ownerAddress);
+
+  // Registra no licenseRegistry para permitir abertura via /decrypt sem blockchain
+  const existingUser = lookupUser(ownerAddress);
+  const ownerInfo = {
+    address: ownerAddress,
+    name:    existingUser?.name ?? "Publisher",
+    cpf:     existingUser?.cpf  ?? "00000000000",
+  };
+  createLicense(licenseId, ownerInfo);
 
   res.json({
     dlmBase64:    dlmBuffer.toString("base64"),
     contentHash:  hash,
     licenseId,
-    ownerAddress: ownerAddress || null,
-    version,
+    ownerAddress,
+    version:      3,
     size:         dlmBuffer.length,
   });
 }));

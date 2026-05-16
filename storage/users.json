@@ -1,0 +1,14 @@
+{
+  "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+    "address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "name": "Alice Teste",
+    "cpf": "111.222.333-00",
+    "updatedAt": "2026-05-15T21:58:48.416Z"
+  },
+  "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb": {
+    "address": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "name": "Bob Destino",
+    "cpf": "999.888.777-66",
+    "updatedAt": "2026-05-15T21:58:48.436Z"
+  }
+}
