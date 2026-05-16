@@ -399,18 +399,230 @@
       <div class="card-header"><h3 style="color:var(--cyan)">2. Métodos disponíveis via APIDLM</h3></div>
       <p>Após o carregamento, acesse os métodos pelo objeto global:</p>
 <pre><span class="kw">const</span> { APIDLM } = window.DLM;</pre>
-      <table class="method-table" style="margin-top:0.75rem">
-        <thead><tr><th>Método</th><th>O que faz</th></tr></thead>
-        <tbody>
-          <tr><td>APIDLM.encrypt(pdfB64, pubKey, nome, cpf, licId?, title?, author?)</td><td>Criptografa um PDF → retorna .dlm v3 em Base64</td></tr>
-          <tr><td>APIDLM.decrypt(dlmB64, pubKey, sig, msg)</td><td>Descriptografa um .dlm → retorna PDF em Base64</td></tr>
-          <tr><td>APIDLM.busca(pubKey)</td><td>Lista os livros (title, author, licenseId) de um endereço</td></tr>
-          <tr><td>APIDLM.previewTransfer(toPubKey, licenseId)</td><td>Consulta o nome do destinatário antes de transferir</td></tr>
-          <tr><td>APIDLM.transfer(fromKey, toKey, licId, sig, msg)</td><td>Transfere a posse do .dlm para outro endereço</td></tr>
-          <tr><td>APIDLM.registerUser(address, name, cpf)</td><td>Cadastra usuário vinculando nome+CPF à carteira</td></tr>
-          <tr><td>APIDLM.lookupUser(address)</td><td>Consulta nome e CPF pelo endereço</td></tr>
-        </tbody>
-      </table>
+    </div>
+
+    <!-- APIDLM.encrypt -->
+    <div class="card">
+      <div class="card-header">
+        <span style="font-family:monospace;color:var(--cyan);font-size:.9rem">APIDLM.encrypt()</span>
+        <span style="font-size:.8rem;color:var(--muted);margin-left:auto">Criptografa um PDF → retorna arquivo .dlm v3 em Base64</span>
+      </div>
+      <div class="params-label">Parâmetros</div>
+      <div class="param-row">
+        <span class="param-name">pdfBase64 <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Conteúdo do PDF codificado em Base64</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">publicKey <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Endereço Ethereum do proprietário do arquivo (ex: <code>0xAbc...123</code>)</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">userName <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Nome completo do proprietário — embutido no .dlm para rastreabilidade</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">userCPF <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">CPF do proprietário — embutido no .dlm para identificação legal</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">licenseId</span>
+        <span class="param-type">string</span>
+        <span class="param-desc">ID único da licença. Se omitido, o servidor gera automaticamente</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">title</span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Título do livro — salvo em texto nos metadados DLMm do arquivo</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">author</span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Autor do livro — salvo em texto nos metadados DLMm do arquivo</span>
+      </div>
+      <div class="params-label" style="margin-top:.85rem">Retorno</div>
+      <div class="param-row">
+        <span class="param-name">dlmBase64</span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Arquivo .dlm v3 gerado, em Base64 — pronto para download</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">licenseId</span>
+        <span class="param-type">string</span>
+        <span class="param-desc">ID da licença gerada (use para referenciar o arquivo depois)</span>
+      </div>
+    </div>
+
+    <!-- APIDLM.decrypt -->
+    <div class="card">
+      <div class="card-header">
+        <span style="font-family:monospace;color:var(--cyan);font-size:.9rem">APIDLM.decrypt()</span>
+        <span style="font-size:.8rem;color:var(--muted);margin-left:auto">Descriptografa um .dlm → retorna o PDF em Base64</span>
+      </div>
+      <div class="params-label">Parâmetros</div>
+      <div class="param-row">
+        <span class="param-name">dlmBase64 <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Conteúdo do arquivo .dlm em Base64</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">publicKey <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Endereço Ethereum de quem está abrindo o arquivo</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">signature <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Assinatura MetaMask da mensagem abaixo (prova de posse da carteira)</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">message <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Mensagem assinada — formato: <code>DLM:decrypt:{licenseId}:{timestamp}</code></span>
+      </div>
+      <div class="params-label" style="margin-top:.85rem">Retorno</div>
+      <div class="param-row">
+        <span class="param-name">pdfBase64</span>
+        <span class="param-type">string</span>
+        <span class="param-desc">PDF descriptografado em Base64 — renderize com PDF.js, nunca salve em disco</span>
+      </div>
+    </div>
+
+    <!-- APIDLM.busca -->
+    <div class="card">
+      <div class="card-header">
+        <span style="font-family:monospace;color:var(--cyan);font-size:.9rem">APIDLM.busca()</span>
+        <span style="font-size:.8rem;color:var(--muted);margin-left:auto">Lista os livros (.dlm) de um endereço Ethereum</span>
+      </div>
+      <div class="params-label">Parâmetros</div>
+      <div class="param-row">
+        <span class="param-name">publicKey <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Endereço Ethereum do usuário</span>
+      </div>
+      <div class="params-label" style="margin-top:.85rem">Retorno</div>
+      <div class="param-row">
+        <span class="param-name">books</span>
+        <span class="param-type">array</span>
+        <span class="param-desc">Lista de objetos <code>{ title, author, licenseId }</code> — um por arquivo .dlm associado</span>
+      </div>
+    </div>
+
+    <!-- APIDLM.previewTransfer -->
+    <div class="card">
+      <div class="card-header">
+        <span style="font-family:monospace;color:var(--cyan);font-size:.9rem">APIDLM.previewTransfer()</span>
+        <span style="font-size:.8rem;color:var(--muted);margin-left:auto">Consulta o nome do destinatário antes de confirmar a transferência</span>
+      </div>
+      <div class="params-label">Parâmetros</div>
+      <div class="param-row">
+        <span class="param-name">toPublicKey <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Endereço Ethereum do destinatário</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">licenseId <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">ID da licença que será transferida</span>
+      </div>
+      <div class="params-label" style="margin-top:.85rem">Retorno</div>
+      <div class="param-row">
+        <span class="param-name">toName</span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Nome cadastrado do destinatário — exiba ao usuário para confirmação antes de transferir</span>
+      </div>
+    </div>
+
+    <!-- APIDLM.transfer -->
+    <div class="card">
+      <div class="card-header">
+        <span style="font-family:monospace;color:var(--cyan);font-size:.9rem">APIDLM.transfer()</span>
+        <span style="font-size:.8rem;color:var(--muted);margin-left:auto">Transfere a posse de um .dlm para outro endereço</span>
+      </div>
+      <div class="params-label">Parâmetros</div>
+      <div class="param-row">
+        <span class="param-name">fromPublicKey <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Endereço Ethereum do dono atual (remetente)</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">toPublicKey <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Endereço Ethereum do novo dono (destinatário)</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">licenseId <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">ID da licença a ser transferida</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">signature <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Assinatura MetaMask do remetente autorizando a transferência</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">message <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Mensagem que foi assinada — formato: <code>DLM:transfer:{licenseId}:{timestamp}</code></span>
+      </div>
+      <div class="params-label" style="margin-top:.85rem">Retorno</div>
+      <div class="param-row">
+        <span class="param-name">dlmBase64</span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Novo .dlm re-encriptado para o destinatário — entregue fora da plataforma (e-mail, download)</span>
+      </div>
+    </div>
+
+    <!-- APIDLM.registerUser -->
+    <div class="card">
+      <div class="card-header">
+        <span style="font-family:monospace;color:var(--cyan);font-size:.9rem">APIDLM.registerUser()</span>
+        <span style="font-size:.8rem;color:var(--muted);margin-left:auto">Cadastra um usuário vinculando nome e CPF à carteira</span>
+      </div>
+      <div class="params-label">Parâmetros</div>
+      <div class="param-row">
+        <span class="param-name">address <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Endereço Ethereum da carteira do usuário</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">name <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Nome completo do usuário</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">cpf <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">CPF do usuário (necessário para transferências e rastreabilidade)</span>
+      </div>
+    </div>
+
+    <!-- APIDLM.lookupUser -->
+    <div class="card">
+      <div class="card-header">
+        <span style="font-family:monospace;color:var(--cyan);font-size:.9rem">APIDLM.lookupUser()</span>
+        <span style="font-size:.8rem;color:var(--muted);margin-left:auto">Consulta o nome e CPF cadastrados para uma carteira</span>
+      </div>
+      <div class="params-label">Parâmetros</div>
+      <div class="param-row">
+        <span class="param-name">address <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Endereço Ethereum a consultar</span>
+      </div>
+      <div class="params-label" style="margin-top:.85rem">Retorno</div>
+      <div class="param-row">
+        <span class="param-name">name</span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Nome completo cadastrado</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">cpf</span>
+        <span class="param-type">string</span>
+        <span class="param-desc">CPF cadastrado</span>
+      </div>
     </div>
 
     <div class="card">
