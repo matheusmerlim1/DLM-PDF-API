@@ -1,40 +1,22 @@
 /**
  * js/main.js
- * Responsabilidade: ponto de entrada da aplicação DLM-PDF Platform.
+ * Ponto de entrada do DLM-PDF Leitor.
  *
- * Inicializa todos os módulos após o DOM estar carregado:
- *  - UI (tabs, diagrama de formato)
- *  - Publisher (aba da editora)
- *  - Reader (aba do leitor)
- *  - PDF.js worker
- *
- * Ordem de carregamento dos scripts no HTML:
+ * Ordem de carregamento dos scripts:
  *  1. pdf.min.js (CDN)
- *  2. crypto.js   → window.DLMCrypto
- *  3. ui.js       → window.UI
- *  4. publisher.js → window.Publisher
- *  5. reader.js   → window.Reader
- *  6. main.js     (este arquivo — último)
+ *  2. crypto.js  → window.DLMCrypto
+ *  3. ui.js      → window.UI
+ *  4. reader.js  → window.Reader
+ *  5. main.js    (este arquivo — último)
  */
 
 'use strict';
 
-// Configura o worker do PDF.js
+// Worker do PDF.js — mesmo domínio evita bloqueio de tracking prevention
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-  // 1. Inicializa sistema de abas
-  UI.initTabs();
-
-  // 2. Renderiza diagrama do formato .dlm no painel da editora
-  UI.buildFormatDiagram();
-
-  // 3. Inicializa o painel da editora
-  Publisher.initPublisher();
-
-  // 4. Inicializa o painel do leitor
   Reader.initReader();
-
-  console.log('[DLM-PDF] Plataforma inicializada.');
+  console.log('[DLM-PDF] Leitor inicializado.');
 });

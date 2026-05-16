@@ -75,12 +75,19 @@ The server **always starts** regardless of blockchain status; mode is reported a
 
 ### Encryption Service (`server/src/services/encryptionService.js`)
 
-**Formato v3 (padrão atual — cadeia de custódia + número verificador):**
+**Formato v3 (padrão atual — cadeia de custódia + número verificador + metadados opcionais):**
 ```
 [MAGIC 4B: "DLM\x03"][licenseId 8B][ownerAddr 42B][IV 16B][HMAC 32B][ciphertext NB]
-ciphertext = AES-256-CBC(verifyCode 4B || pdf NB)
+
+Plaintext sem metadados (retrocompat):
+  ciphertext = AES-256-CBC(verifyCode 4B || pdf NB)
+
+Plaintext com metadados (title/author embutidos):
+  ciphertext = AES-256-CBC(verifyCode 4B || "DLMm" 4B || metaLen 2B || meta JSON || pdf NB)
+
 verifyCode = SHA256(pdf)[0:4]  — valida decriptação sem expor conteúdo
 ownerAddr  = endereço de quem cifrou o arquivo (pode diferir do dono atual)
+"DLMm"     = marcador 0x44 0x4C 0x4D 0x6D — presença indica que há metadados
 ```
 
 **Formatos legados (leitura apenas):**
@@ -88,9 +95,16 @@ ownerAddr  = endereço de quem cifrou o arquivo (pode diferir do dono atual)
 - v2: `[DLM\x02][licenseId 8B][ownerAddr 42B][IV 16B][HMAC 32B][ciphertext NB]`
 
 **Funções v3:**
-- `encryptToDLMv3(pdfBuffer, licenseId, ownerAddress)` → `.dlm` Buffer
-- `tryDecryptV3WithAddress(dlmBuffer, candidateAddress)` → `{ pdf, licenseId }` ou `null`
+- `encryptToDLMv3(pdfBuffer, licenseId, ownerAddress, metadata?)` → `.dlm` Buffer
+  - `metadata = { title?, author? }` — opcional; omitir ou `null` = sem metadados
+- `tryDecryptV3WithAddress(dlmBuffer, candidateAddress)` → `{ pdf, licenseId, metadata }` ou `null`
 - `decryptDLMv3WithChain(dlmBuffer, candidateAddresses[])` → itera todos até achar a chave correta
+  - retorna `{ pdf, licenseId, metadata, decryptedWith }`
+
+**Rotas que aceitam title/author:**
+- `POST /encrypt` — body: `{ pdfBase64, publicKey, userName, userCPF, title?, author?, licenseId? }`
+- `POST /publisher/encrypt` — body: `{ pdfBase64, licenseId, ownerAddress?, title?, author? }`
+- `POST /decrypt` — retorna `{ pdfBase64, dlmBase64, licenseId, metadata, owner, version }`
 
 **Novos serviços:**
 - `licenseRegistryService.js` — CRUD de `storage/licenses/{licenseId}.json` (cadeia de custódia)
@@ -187,7 +201,7 @@ Skills active for this project (invoke with `/skill-name`):
    - [ ] `artigo_dlm_v5.tex` está em sincronia com o código? (seções Desenvolvimento e Resultados)
    - [ ] Score do Detector de IA no texto editado está ≤ 30%?
    - [ ] `server/.env` e `.claude/settings.local.json` **não** aparecem no `git status`?
-   - [ ] Os testes do servidor passam? (`cd server && npm test`)
+   - [ ] Os testes do servidor passam? (`cd server && npm test`) — atualmente **26 testes**, 2 suites
    - [ ] O contrato compila sem warnings? (`npx hardhat compile`)
 4. **Commit e push** — se houver alterações pendentes, commitar e o hook de post-commit empurra automaticamente para o GitHub.
 

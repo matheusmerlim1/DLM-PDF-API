@@ -1,26 +1,28 @@
 /**
  * js/reader.js
- * Responsabilidade: lógica da aba "Leitor — Abrir .dlm".
+ * Responsabilidade: lógica do leitor de arquivos .dlm.
  *
  * Fluxo:
  *  1. Usuário conecta carteira Ethereum (MetaMask ou modo demo)
  *  2. Seleciona ou arrasta um arquivo .dlm
- *  3. O sistema extrai o licenseId do cabeçalho sem decriptografar
+ *  3. O sistema extrai licenseId e versão do cabeçalho (sem decriptografar)
  *  4. Ao clicar em "Abrir e-book":
- *     a. Simula assinatura criptográfica com a carteira
- *     b. Simula validação de posse na Blockchain
- *     c. Deriva a chave de sessão via HKDF
- *     d. Verifica HMAC e decifra o arquivo em memória
- *     e. Renderiza o PDF via PDF.js (nunca grava em disco)
+ *     v1 (demo): decriptação local com chave demo + HMAC local
+ *     v2/v3:     assina com MetaMask → chama servidor → recebe PDF
  *
  * Depende de: DLMCrypto (crypto.js), UI (ui.js), PDF.js (CDN)
  */
 
 'use strict';
 
+// URL do servidor DRM (mesma do Livraria DLM)
+const DRM_API = 'https://dlm-pdf-server-production.up.railway.app/api/v1';
+
 // ── Estado do módulo ──────────────────────────────────────
 let walletAddr    = null;   // Endereço da carteira conectada
+let isDemoMode    = false;  // true quando carteira foi simulada
 let readDLMBuffer = null;   // ArrayBuffer do arquivo .dlm carregado
+let dlmHeader     = null;   // resultado de parseDLMHeader
 
 // ── Inicialização ─────────────────────────────────────────
 
@@ -51,12 +53,13 @@ function initReader() {
  */
 async function connectMetaMask() {
   if (!window.ethereum) {
-    UI.toast('MetaMask não encontrado. Use o modo demo.', 'err');
+    UI.toast('MetaMask não encontrado. Use o modo demo (apenas .dlm v1).', 'err');
     return;
   }
   try {
     const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
     walletAddr = accounts[0].toLowerCase();
+    isDemoMode = false;
     showWallet();
     UI.toast('Carteira MetaMask conectada!', 'ok');
   } catch {
@@ -66,14 +69,16 @@ async function connectMetaMask() {
 
 /**
  * Simula uma carteira para demonstração (sem MetaMask).
+ * Funciona apenas para arquivos .dlm v1 gerados localmente.
  */
 function connectDemo() {
   const bytes = DLMCrypto.randomBytes(20);
   walletAddr  = '0x' + Array.from(bytes)
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
+  isDemoMode  = true;
   showWallet();
-  UI.toast('Modo demo: carteira simulada com sucesso.', 'info');
+  UI.toast('Modo demo ativo — apenas arquivos .dlm v1 são suportados.', 'info');
 }
 
 /**
@@ -101,17 +106,22 @@ async function handleDLMLoad(file) {
   document.getElementById('read-fname').textContent = file.name;
   document.getElementById('read-chip').style.display = 'flex';
 
-  // Tenta extrair licenseId do cabeçalho
+  // Tenta extrair cabeçalho (licenseId + versão)
   try {
-    const lid = DLMCrypto.readLicenseId(readDLMBuffer);
-    document.getElementById('read-licid').value = lid;
+    dlmHeader = DLMCrypto.parseDLMHeader(readDLMBuffer);
+    document.getElementById('read-licid').value =
+      `${dlmHeader.licenseId} (v${dlmHeader.version})`;
 
     UI.setStep('rstep-1', 'done');
     UI.setStep('rstep-2', 'done');
-    UI.toast(`Arquivo .dlm carregado — License ID: ${lid}`, 'ok');
+    UI.toast(
+      `Arquivo .dlm v${dlmHeader.version} carregado — License ID: ${dlmHeader.licenseId}`,
+      'ok'
+    );
   } catch (err) {
     UI.toast('Arquivo inválido: ' + err.message, 'err');
     readDLMBuffer = null;
+    dlmHeader     = null;
     document.getElementById('read-chip').style.display = 'none';
     return;
   }
@@ -126,10 +136,54 @@ function checkOpenReady() {
   document.getElementById('btn-open').disabled = !(walletAddr && readDLMBuffer);
 }
 
+// ── Decriptação via servidor (v2/v3) ──────────────────────
+
+/**
+ * Envia o .dlm ao servidor com assinatura MetaMask e recebe o PDF.
+ * @returns {Promise<{ pdf: ArrayBuffer, licenseId: string, hmacOk: boolean }>}
+ */
+async function decryptViaServer() {
+  if (!window.ethereum) {
+    throw new Error(
+      'MetaMask é necessário para abrir arquivos .dlm v2/v3. ' +
+      'O modo demo suporta apenas arquivos v1 gerados localmente.'
+    );
+  }
+
+  const licenseId = dlmHeader.licenseId;
+  const message   = `DLM:decrypt:${licenseId}:${Date.now()}`;
+
+  const signature = await window.ethereum.request({
+    method: 'personal_sign',
+    params: [message, walletAddr],
+  });
+
+  const bytes = new Uint8Array(readDLMBuffer);
+  let binary  = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  const dlmBase64 = btoa(binary);
+
+  const res = await fetch(`${DRM_API}/decrypt`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dlmBase64, publicKey: walletAddr, signature, message }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Servidor retornou ${res.status}`);
+  }
+
+  const data     = await res.json();
+  const pdfBytes = Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0));
+  return { pdf: pdfBytes.buffer, licenseId, hmacOk: true };
+}
+
 // ── Processo de Abertura ──────────────────────────────────
 
 /**
  * Executa o fluxo completo de validação e renderização.
+ * v1: decriptação local (chave demo). v2/v3: via servidor + MetaMask.
  */
 async function handleOpen() {
   const btn = document.getElementById('btn-open');
@@ -139,44 +193,46 @@ async function handleOpen() {
   UI.resetProgress('read-prog');
 
   try {
-    // — Step 3: Assinatura da carteira (simulada em demo) ——
+    const version = dlmHeader.version;
+
+    // Etapa 3: assinatura
     UI.setStep('rstep-3', 'active');
     UI.setProgress('read-prog', 20);
-    await UI.delay(500);
+    if (version === 1) await UI.delay(500);
     UI.setStep('rstep-3', 'done');
 
-    // — Step 4: Validação on-chain (simulada em demo) ———————
+    // Etapa 4: validação on-chain
     UI.setStep('rstep-4', 'active');
     UI.setProgress('read-prog', 45);
-    await UI.delay(700);
-
-    // Gera um TX hash fictício para demonstração
-    const fakeTxBytes = DLMCrypto.randomBytes(32);
-    const fakeTx = '0x' + Array.from(fakeTxBytes)
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
+    if (version === 1) await UI.delay(700);
     UI.setStep('rstep-4', 'done');
 
-    // — Step 5: Derivar chave + verificar HMAC ——————————————
+    // Etapa 5: derivar chave / chamar servidor
     UI.setStep('rstep-5', 'active');
     UI.setProgress('read-prog', 68);
-    await UI.delay(300);
 
-    // Decifra e verifica HMAC (operação real)
-    const { pdf, licenseId, hmacOk } = await DLMCrypto.decryptDLM(readDLMBuffer);
+    let pdfResult;
+    if (version === 1) {
+      pdfResult = await DLMCrypto.decryptDLM(readDLMBuffer);
+    } else {
+      UI.toast(`Arquivo v${version}: aguardando assinatura MetaMask...`, 'info');
+      pdfResult = await decryptViaServer();
+    }
     UI.setStep('rstep-5', 'done');
 
-    // — Step 6: Renderizar PDF ——————————————————————————————
+    // Etapa 6: renderizar PDF
     UI.setStep('rstep-6', 'active');
     UI.setProgress('read-prog', 85);
 
-    await renderPDF(pdf);
+    await renderPDF(pdfResult.pdf);
 
     UI.setStep('rstep-6', 'done');
     UI.setProgress('read-prog', 100);
 
-    // Exibe painel de informações da licença
-    showLicenseInfo(licenseId, hmacOk, fakeTx);
+    const fakeTx = '0x' + Array.from(DLMCrypto.randomBytes(32))
+      .map(b => b.toString(16).padStart(2, '0')).join('');
+
+    showLicenseInfo(pdfResult.licenseId, pdfResult.hmacOk, fakeTx, version);
     UI.toast('E-book aberto com sucesso!', 'ok');
 
   } catch (err) {
@@ -233,19 +289,20 @@ async function renderPDF(pdfBuffer) {
  * @param {string}  licenseId
  * @param {boolean} hmacOk
  * @param {string}  txHash
+ * @param {number}  version
  */
-function showLicenseInfo(licenseId, hmacOk, txHash) {
+function showLicenseInfo(licenseId, hmacOk, txHash, version = 1) {
   const card = document.getElementById('read-info');
   card.style.display = 'block';
 
-  document.getElementById('ri-id').textContent    = licenseId;
+  document.getElementById('ri-id').textContent    = `${licenseId} (v${version})`;
   document.getElementById('ri-owner').textContent =
     walletAddr.slice(0, 10) + '...' + walletAddr.slice(-6);
   document.getElementById('ri-access').textContent = '✅ CONCEDIDO';
   document.getElementById('ri-tx').textContent     =
     txHash.slice(0, 20) + '...';
   document.getElementById('ri-hmac').textContent   =
-    hmacOk ? '✅ VÁLIDO' : '❌ INVÁLIDO';
+    version === 1 ? (hmacOk ? '✅ VÁLIDO' : '❌ INVÁLIDO') : '✅ SERVIDOR';
 }
 
 // Exporta para main.js

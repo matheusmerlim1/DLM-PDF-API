@@ -2,27 +2,23 @@
  * js/crypto.js
  * Responsabilidade: toda a lógica criptográfica do sistema DLM-PDF.
  *
- * Inclui:
- *  - Derivação de chave via HKDF-SHA-256
- *  - Cifragem AES-256-CBC (PDF → .dlm)
- *  - Decifragem AES-256-CBC (.dlm → PDF)
- *  - Cálculo de SHA-256 e HMAC-SHA-256
- *  - Montagem e parsing do formato binário .dlm
- *
- * Formato do arquivo .dlm:
- * ┌─────────────────────────────────────────────────────┐
- * │ MAGIC      4B  : "DLM\x01"                          │
- * │ licenseId  8B  : uint64 big-endian                   │
- * │ IV        16B  : vetor de inicialização AES          │
- * │ HMAC      32B  : HMAC-SHA-256 de integridade         │
- * │ ciphertext NB  : conteúdo AES-256-CBC                │
- * └─────────────────────────────────────────────────────┘
+ * Formatos suportados:
+ * ┌─────────────────────────────────────────────────────────────┐
+ * │ v1  MAGIC(4) licenseId(8) IV(16) HMAC(32) ciphertext        │
+ * │ v2  MAGIC(4) licenseId(8) ownerAddr(42) IV(16) HMAC(32) … │
+ * │ v3  igual ao v2, com verifyCode + metadados no plaintext    │
+ * └─────────────────────────────────────────────────────────────┘
+ * v1: cabeçalho total = 60 bytes (decriptação local via demo key)
+ * v2/v3: cabeçalho total = 102 bytes (decriptação via servidor)
  */
 
 'use strict';
 
 // ── Constantes ────────────────────────────────────────────
-const DLM_MAGIC = [0x44, 0x4C, 0x4D, 0x01]; // "DLM\x01"
+const DLM_MAGIC_V1 = [0x44, 0x4C, 0x4D, 0x01]; // "DLM\x01"
+const DLM_MAGIC_V2 = [0x44, 0x4C, 0x4D, 0x02]; // "DLM\x02"
+const DLM_MAGIC_V3 = [0x44, 0x4C, 0x4D, 0x03]; // "DLM\x03"
+const DLM_MAGIC    = DLM_MAGIC_V1;              // alias legacy
 
 /**
  * Chave mestra de demonstração (32 bytes / 256 bits).
@@ -211,41 +207,42 @@ async function encryptPDF(pdfBuffer, licenseId) {
  * @returns {Promise<{ pdf: ArrayBuffer, licenseId: string, hmacOk: boolean }>}
  * @throws {Error} Se magic inválido ou HMAC não conferir
  */
+/**
+ * Decripta um arquivo .dlm v1 (demo) em memória.
+ * Apenas para arquivos gerados localmente com a chave demo.
+ * Arquivos v2/v3 devem ser decriptados via servidor (reader.js).
+ *
+ * @param {ArrayBuffer} dlmBuffer
+ * @returns {Promise<{ pdf: ArrayBuffer, licenseId: string, hmacOk: boolean }>}
+ */
 async function decryptDLM(dlmBuffer) {
-  const bytes = new Uint8Array(dlmBuffer);
-
-  // Valida magic "DLM\x01"
-  for (let i = 0; i < 4; i++) {
-    if (bytes[i] !== DLM_MAGIC[i]) {
-      throw new Error('Arquivo .dlm inválido: magic incorreto.');
-    }
+  const header = parseDLMHeader(dlmBuffer);
+  if (header.version !== 1) {
+    throw new Error(
+      `Arquivo .dlm v${header.version} requer decriptação pelo servidor. Use MetaMask para abrir.`
+    );
   }
 
-  // Lê licenseId dos bytes 4–11 (uint64 big-endian)
-  const view      = new DataView(dlmBuffer);
-  const licenseId = view.getBigUint64(4, false).toString();
+  const bytes      = new Uint8Array(dlmBuffer);
+  const { licenseId, ivOffset, hmacOffset, ciphertextOffset } = header;
 
-  const iv         = bytes.slice(12, 28);
-  const storedHmac = bytes.slice(28, 60);
-  const ciphertext = bytes.slice(60);
+  const iv         = bytes.slice(ivOffset,          ivOffset + 16);
+  const storedHmac = bytes.slice(hmacOffset,        hmacOffset + 32);
+  const ciphertext = bytes.slice(ciphertextOffset);
 
-  // Deriva a mesma chave usada na cifragem
   const aesKey   = await deriveKey(licenseId);
   const keyBytes = await keyToBytes(aesKey);
 
-  // Recalcula HMAC e compara (proteção contra adulteração)
   const licIdBuf  = bytes.slice(4, 12);
   const hmacInput = new Uint8Array([...licIdBuf, ...iv, ...ciphertext]);
   const computed  = await hmacSHA256(keyBytes, hmacInput.buffer);
 
-  // Comparação bit a bit (evita timing attack)
   let diff = 0;
   for (let i = 0; i < 32; i++) diff |= computed[i] ^ storedHmac[i];
   if (diff !== 0) {
     throw new Error('Verificação HMAC falhou: arquivo corrompido ou adulterado.');
   }
 
-  // Decifra o conteúdo
   const pdf = await crypto.subtle.decrypt(
     { name: 'AES-CBC', iv },
     aesKey,
@@ -256,25 +253,58 @@ async function decryptDLM(dlmBuffer) {
 }
 
 /**
- * Extrai o licenseId do cabeçalho de um arquivo .dlm
+ * Detecta a versão de um arquivo .dlm pelos 4 bytes de magic.
+ * @param {Uint8Array} bytes
+ * @returns {1|2|3|0} versão ou 0 se inválido
+ */
+function detectDLMVersion(bytes) {
+  if (bytes[0] !== 0x44 || bytes[1] !== 0x4C || bytes[2] !== 0x4D) return 0;
+  if (bytes[3] === 0x01) return 1;
+  if (bytes[3] === 0x02) return 2;
+  if (bytes[3] === 0x03) return 3;
+  return 0;
+}
+
+/**
+ * Lê o cabeçalho de um .dlm (v1, v2 ou v3) sem decriptografar.
+ * @param {ArrayBuffer} dlmBuffer
+ * @returns {{ version, licenseId, ownerAddress, ivOffset, hmacOffset, ciphertextOffset }}
+ * @throws {Error} Se o formato não for reconhecido
+ */
+function parseDLMHeader(dlmBuffer) {
+  const bytes   = new Uint8Array(dlmBuffer);
+  const version = detectDLMVersion(bytes);
+  if (!version) throw new Error('Formato de arquivo .dlm não reconhecido.');
+
+  const view      = new DataView(dlmBuffer);
+  const licenseId = view.getBigUint64(4, false).toString();
+
+  if (version === 1) {
+    return { version: 1, licenseId, ownerAddress: null,
+             ivOffset: 12, hmacOffset: 28, ciphertextOffset: 60 };
+  }
+
+  // v2 e v3: ownerAddr ASCII em bytes 12–53 (42 bytes)
+  const ownerAddress = new TextDecoder().decode(bytes.slice(12, 54))
+    .replace(/\0/g, '').trim();
+  return { version, licenseId, ownerAddress,
+           ivOffset: 54, hmacOffset: 70, ciphertextOffset: 102 };
+}
+
+/**
+ * Extrai o licenseId do cabeçalho de um arquivo .dlm (v1, v2 ou v3)
  * sem decriptografar o conteúdo.
- *
  * @param {ArrayBuffer} dlmBuffer
  * @returns {string} licenseId como string decimal
- * @throws {Error} Se magic inválido
+ * @throws {Error} Se o formato não for reconhecido
  */
 function readLicenseId(dlmBuffer) {
-  const bytes = new Uint8Array(dlmBuffer);
-  for (let i = 0; i < 4; i++) {
-    if (bytes[i] !== DLM_MAGIC[i]) throw new Error('Magic inválido.');
-  }
-  const view = new DataView(dlmBuffer);
-  return view.getBigUint64(4, false).toString();
+  return parseDLMHeader(dlmBuffer).licenseId;
 }
 
 // Exporta para uso nos outros módulos via window
 window.DLMCrypto = {
-  DLM_MAGIC,
+  DLM_MAGIC, DLM_MAGIC_V1, DLM_MAGIC_V2, DLM_MAGIC_V3,
   hexToBytes,
   bytesToHex,
   randomBytes,
@@ -282,5 +312,6 @@ window.DLMCrypto = {
   exportKeyHex,
   encryptPDF,
   decryptDLM,
+  parseDLMHeader,
   readLicenseId,
 };
