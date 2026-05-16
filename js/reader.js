@@ -35,9 +35,6 @@ function initReader() {
   document.getElementById('btn-connect')
     .addEventListener('click', connectMetaMask);
 
-  document.getElementById('btn-demo')
-    .addEventListener('click', connectDemo);
-
   // Drag-and-drop do arquivo .dlm
   UI.setupDrop('read-drop', 'read-file', '.dlm', handleDLMLoad);
 
@@ -65,20 +62,6 @@ async function connectMetaMask() {
   } catch {
     UI.toast('Conexão com MetaMask recusada.', 'err');
   }
-}
-
-/**
- * Simula uma carteira para demonstração (sem MetaMask).
- * Funciona apenas para arquivos .dlm v1 gerados localmente.
- */
-function connectDemo() {
-  const bytes = DLMCrypto.randomBytes(20);
-  walletAddr  = '0x' + Array.from(bytes)
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-  isDemoMode  = true;
-  showWallet();
-  UI.toast('Modo demo ativo — apenas arquivos .dlm v1 são suportados.', 'info');
 }
 
 /**
