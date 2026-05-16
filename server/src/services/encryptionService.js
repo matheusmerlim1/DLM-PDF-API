@@ -51,6 +51,10 @@ const __dirname  = path.dirname(fileURLToPath(import.meta.url));
 const MAGIC_V1   = Buffer.from([0x44, 0x4C, 0x4D, 0x01]); // "DLM\x01"
 const MAGIC_V2   = Buffer.from([0x44, 0x4C, 0x4D, 0x02]); // "DLM\x02"
 const MAGIC_V3   = Buffer.from([0x44, 0x4C, 0x4D, 0x03]); // "DLM\x03"
+// Marcador de metadados dentro do plaintext v3: "DLMm" (0x44 0x4C 0x4D 0x6D)
+// Plaintext com metadados: verifyCode(4B) || "DLMm"(4B) || metaLen(2B) || meta(JSON) || pdf
+// Plaintext sem metadados: verifyCode(4B) || pdf
+const META_MARKER = Buffer.from([0x44, 0x4C, 0x4D, 0x6D]); // "DLMm"
 const OWNER_LEN  = 42;
 const ALGO       = "aes-256-cbc";
 const VERIFY_LEN = 4; // bytes do código verificador (SHA256(pdf)[0:4])
@@ -244,18 +248,36 @@ function deriveMACKeyV3(licenseId, ownerAddress) {
  * um código verificador (SHA256(pdf)[0:4]) que permite validar a
  * decriptação sem expor o conteúdo.
  *
+ * Quando metadata é fornecido, o plaintext inclui o marcador "DLMm" + JSON:
+ *   verifyCode(4B) || "DLMm"(4B) || metaLen(2B) || meta(JSON UTF-8) || pdf
+ * Sem metadata (retrocompatível):
+ *   verifyCode(4B) || pdf
+ *
  * @param {Buffer} pdfBuffer
  * @param {string|number} licenseId
  * @param {string} ownerAddress - endereço Ethereum "0x..." de quem cifra
+ * @param {{ title?: string, author?: string }|null} [metadata] - opcional
  * @returns {Buffer} arquivo .dlm v3
  */
-export function encryptToDLMv3(pdfBuffer, licenseId, ownerAddress) {
+export function encryptToDLMv3(pdfBuffer, licenseId, ownerAddress, metadata = null) {
   const owner = ownerAddress.toLowerCase();
   if (!/^0x[0-9a-f]{40}$/.test(owner)) throw new Error("ownerAddress inválido.");
 
   // Código verificador: primeiros 4 bytes do SHA256 do PDF original
   const verifyCode = crypto.createHash("sha256").update(pdfBuffer).digest().subarray(0, VERIFY_LEN);
-  const plaintext  = Buffer.concat([verifyCode, pdfBuffer]);
+
+  let plaintext;
+  const metaObj = {};
+  if (metadata?.title)  metaObj.title  = String(metadata.title).slice(0, 500);
+  if (metadata?.author) metaObj.author = String(metadata.author).slice(0, 200);
+  if (Object.keys(metaObj).length > 0) {
+    const metaBuf = Buffer.from(JSON.stringify(metaObj), "utf8");
+    const lenBuf  = Buffer.alloc(2);
+    lenBuf.writeUInt16BE(metaBuf.length);
+    plaintext = Buffer.concat([verifyCode, META_MARKER, lenBuf, metaBuf, pdfBuffer]);
+  } else {
+    plaintext = Buffer.concat([verifyCode, pdfBuffer]);
+  }
 
   const encKey     = deriveEncKeyV3(licenseId, owner);
   const macKey     = deriveMACKeyV3(licenseId, owner);
@@ -306,14 +328,29 @@ export function tryDecryptV3WithAddress(dlmBuffer, candidateAddress) {
     const decipher  = crypto.createDecipheriv(ALGO, encKey, iv);
     const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 
-    const storedCode   = plaintext.subarray(0, VERIFY_LEN);
-    const pdf          = plaintext.subarray(VERIFY_LEN);
+    const storedCode = plaintext.subarray(0, VERIFY_LEN);
+    let pdf, metadata = null;
+
+    // Detecta presença de metadados pelo marcador "DLMm" logo após verifyCode
+    if (
+      plaintext.length > VERIFY_LEN + META_MARKER.length &&
+      plaintext.subarray(VERIFY_LEN, VERIFY_LEN + META_MARKER.length).equals(META_MARKER)
+    ) {
+      const metaLen = plaintext.readUInt16BE(VERIFY_LEN + META_MARKER.length);
+      const metaStart = VERIFY_LEN + META_MARKER.length + 2;
+      const metaBuf = plaintext.subarray(metaStart, metaStart + metaLen);
+      pdf = plaintext.subarray(metaStart + metaLen);
+      try { metadata = JSON.parse(metaBuf.toString("utf8")); } catch { metadata = null; }
+    } else {
+      pdf = plaintext.subarray(VERIFY_LEN);
+    }
+
     const expectedCode = crypto.createHash("sha256").update(pdf).digest().subarray(0, VERIFY_LEN);
 
     // Código verificador garante que a decriptação produziu o conteúdo correto
     if (!storedCode.equals(expectedCode)) return null;
 
-    return { pdf, licenseId };
+    return { pdf, licenseId, metadata };
   } catch {
     return null;
   }
@@ -333,6 +370,7 @@ export function tryDecryptV3WithAddress(dlmBuffer, candidateAddress) {
 export function decryptDLMv3WithChain(dlmBuffer, candidateAddresses) {
   for (const addr of candidateAddresses) {
     const result = tryDecryptV3WithAddress(dlmBuffer, addr);
+    // result já inclui { pdf, licenseId, metadata, decryptedWith }
     if (result) return { ...result, decryptedWith: addr };
   }
   throw new Error(

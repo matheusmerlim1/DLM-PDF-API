@@ -182,7 +182,7 @@ router.get("/users/:address", (req, res) => {
  * Retorna: { dlmBase64, licenseId, contentHash, owner: { address, name, cpf } }
  */
 router.post("/encrypt", wrap(async (req, res) => {
-  const { pdfBase64, publicKey, userName, userCPF } = req.body;
+  const { pdfBase64, publicKey, userName, userCPF, title, author } = req.body;
   let   { licenseId } = req.body;
 
   if (!pdfBase64 || !publicKey || !userName || !userCPF)
@@ -202,8 +202,11 @@ router.post("/encrypt", wrap(async (req, res) => {
   const pdfBuffer = Buffer.from(pdfBase64, "base64");
   const hash      = sha256Hex(pdfBuffer);
 
-  // Cifra no formato v3 (owner-bound + código verificador)
-  const dlmBuffer = encryptToDLMv3(pdfBuffer, licenseId, publicKey);
+  // Metadados opcionais: só embute se ao menos um campo for fornecido
+  const metadata = (title || author) ? { title: title || undefined, author: author || undefined } : null;
+
+  // Cifra no formato v3 (owner-bound + código verificador + metadados opcionais)
+  const dlmBuffer = encryptToDLMv3(pdfBuffer, licenseId, publicKey, metadata);
 
   // Registra usuário e cria licença
   const owner = { address: publicKey, name: userName.trim(), cpf: userCPF.trim() };
@@ -216,6 +219,7 @@ router.post("/encrypt", wrap(async (req, res) => {
     contentHash: hash,
     size:        dlmBuffer.length,
     version:     3,
+    metadata:    metadata ?? null,
     owner: { address: publicKey.toLowerCase(), name: owner.name, cpf: owner.cpf },
   });
 }));
@@ -278,10 +282,10 @@ router.post("/decrypt", wrap(async (req, res) => {
   const candidates = getCandidateAddresses(licenseRecord);
 
   // 5. Itera pelas chaves até encontrar a correta (valida pelo código verificador)
-  const { pdf, decryptedWith } = decryptDLMv3WithChain(dlmBuffer, candidates);
+  const { pdf, decryptedWith, metadata } = decryptDLMv3WithChain(dlmBuffer, candidates);
 
-  // 6. Re-cifra com as chaves do dono atual
-  const newDlmBuffer = encryptToDLMv3(pdf, licenseId, publicKey);
+  // 6. Re-cifra com as chaves do dono atual, preservando os metadados
+  const newDlmBuffer = encryptToDLMv3(pdf, licenseId, publicKey, metadata ?? null);
   updateEncryptedWith(licenseId, publicKey);
 
   res.json({
@@ -289,6 +293,7 @@ router.post("/decrypt", wrap(async (req, res) => {
     dlmBase64:     newDlmBuffer.toString("base64"),
     licenseId,
     decryptedWith,
+    metadata:      metadata ?? null,
     owner:         licenseRecord.currentOwner,
     version:       3,
   });
@@ -735,7 +740,7 @@ router.post("/publisher/books/:bookId/upload", requireAuth, wrap(async (req, res
  * era omitido, gerando arquivos que exigiam blockchain para abrir.
  */
 router.post("/publisher/encrypt", requireAuth, wrap(async (req, res) => {
-  const { pdfBase64, licenseId, ownerAddress: bodyOwner } = req.body;
+  const { pdfBase64, licenseId, ownerAddress: bodyOwner, title, author } = req.body;
   if (!pdfBase64 || !licenseId) {
     return res.status(400).json({ error: "pdfBase64 e licenseId são obrigatórios." });
   }
@@ -748,7 +753,10 @@ router.post("/publisher/encrypt", requireAuth, wrap(async (req, res) => {
   const pdfBuffer = Buffer.from(pdfBase64, "base64");
   const hash      = sha256Hex(pdfBuffer);
 
-  const dlmBuffer = encryptToDLMv3(pdfBuffer, licenseId, ownerAddress);
+  // Metadados opcionais: só embute se ao menos um campo for fornecido
+  const metadata = (title || author) ? { title: title || undefined, author: author || undefined } : null;
+
+  const dlmBuffer = encryptToDLMv3(pdfBuffer, licenseId, ownerAddress, metadata);
 
   // Registra no licenseRegistry para permitir abertura via /decrypt sem blockchain
   const existingUser = lookupUser(ownerAddress);
@@ -766,6 +774,7 @@ router.post("/publisher/encrypt", requireAuth, wrap(async (req, res) => {
     ownerAddress,
     version:      3,
     size:         dlmBuffer.length,
+    metadata:     metadata ?? null,
   });
 }));
 
