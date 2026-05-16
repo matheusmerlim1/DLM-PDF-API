@@ -273,6 +273,7 @@
     <button class="nav-item active" onclick="nav('intro',this)">📖 O que é esta API</button>
     <button class="nav-item" onclick="nav('setup',this)">⚙️ Configurar no seu site</button>
     <button class="nav-item" onclick="nav('auth-flow',this)">🔐 Fluxo de autenticação</button>
+    <button class="nav-item" onclick="nav('wallets',this)">🦊 Carteiras compatíveis</button>
   </div>
 
   <div class="nav-section">
@@ -324,6 +325,229 @@
 
 <!-- ═══════════════════ MAIN ═══════════════════ -->
 <main>
+
+  <!-- ═══ WALLETS ═══ -->
+  <section id="wallets">
+    <h2>Carteiras compatíveis</h2>
+    <p class="section-desc">
+      A API valida apenas a assinatura criptográfica — não importa qual carteira a gerou.
+      Qualquer carteira que implemente <code>personal_sign</code> (EIP-191) é aceita.
+      O que muda entre carteiras é apenas o código de conexão no <strong>seu site</strong>;
+      o que é enviado para a API é sempre o mesmo: <code>address</code>, <code>message</code> e <code>signature</code>.
+    </p>
+
+    <div class="card">
+      <div class="card-header"><h3 style="color:var(--cyan)">Como a API verifica a assinatura</h3></div>
+      <p>Independente da carteira, o servidor executa sempre a mesma verificação:</p>
+<pre><span class="cm">// No servidor (Node.js + ethers.js)</span>
+<span class="kw">const</span> recovered = ethers.<span class="fn">verifyMessage</span>(message, signature);
+<span class="kw">if</span> (recovered.<span class="fn">toLowerCase</span>() !== address.<span class="fn">toLowerCase</span>()) {
+  <span class="kw">throw new</span> <span class="fn">Error</span>(<span class="str">'Assinatura inválida'</span>);
+}</pre>
+      <p>Por isso, qualquer carteira que assine corretamente com a chave privada associada ao endereço é aceita.</p>
+    </div>
+
+    <!-- GRUPO 1: window.ethereum -->
+    <div class="card">
+      <div class="card-header">
+        <h3 style="color:var(--cyan)">Grupo 1 — Extensões de browser <span style="font-size:.75rem;color:var(--green);font-weight:normal">(código idêntico para todas)</span></h3>
+      </div>
+      <p>Essas carteiras injetam <code>window.ethereum</code> no browser. O código de conexão é exatamente igual entre elas — o usuário escolhe qual instalar.</p>
+
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">
+        <span style="background:#1e3a8a44;border:1px solid #1e3a8a88;color:#93c5fd;padding:3px 10px;border-radius:20px;font-size:.78rem">🦊 MetaMask</span>
+        <span style="background:#1e3a8a44;border:1px solid #1e3a8a88;color:#93c5fd;padding:3px 10px;border-radius:20px;font-size:.78rem">🐰 Rabby</span>
+        <span style="background:#1e3a8a44;border:1px solid #1e3a8a88;color:#93c5fd;padding:3px 10px;border-radius:20px;font-size:.78rem">🔵 Coinbase Wallet</span>
+        <span style="background:#1e3a8a44;border:1px solid #1e3a8a88;color:#93c5fd;padding:3px 10px;border-radius:20px;font-size:.78rem">🦁 Brave Wallet</span>
+        <span style="background:#1e3a8a44;border:1px solid #1e3a8a88;color:#93c5fd;padding:3px 10px;border-radius:20px;font-size:.78rem">🖼️ Frame</span>
+      </div>
+
+<pre><button class="copy-btn" onclick="copyPre(this)">copiar</button><span class="cm">// Verificar se alguma carteira está instalada</span>
+<span class="kw">if</span> (!window.ethereum) {
+  <span class="fn">alert</span>(<span class="str">'Nenhuma carteira Ethereum encontrada. Instale MetaMask ou Rabby.'</span>);
+}
+
+<span class="cm">// Conectar e obter o endereço</span>
+<span class="kw">async function</span> <span class="fn">conectar</span>() {
+  <span class="kw">const</span> accounts = <span class="kw">await</span> window.ethereum.<span class="fn">request</span>({
+    method: <span class="str">'eth_requestAccounts'</span>
+  });
+  <span class="kw">return</span> accounts[<span class="num">0</span>].<span class="fn">toLowerCase</span>(); <span class="cm">// endereço do usuário</span>
+}
+
+<span class="cm">// Assinar uma mensagem (abre popup na carteira)</span>
+<span class="kw">async function</span> <span class="fn">assinar</span>(address, message) {
+  <span class="kw">return</span> window.ethereum.<span class="fn">request</span>({
+    method: <span class="str">'personal_sign'</span>,
+    params: [message, address],
+  });
+}
+
+<span class="cm">// Uso completo com a API</span>
+<span class="kw">const</span> address   = <span class="kw">await</span> <span class="fn">conectar</span>();
+<span class="kw">const</span> { message } = <span class="kw">await</span> (
+  <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">`${API}/auth/challenge?address=${address}`</span>)
+).<span class="fn">json</span>();
+<span class="kw">const</span> signature = <span class="kw">await</span> <span class="fn">assinar</span>(address, message);
+<span class="cm">// → agora chame POST /auth/login com { address, message, signature }</span></pre>
+    </div>
+
+    <!-- GRUPO 2: WalletConnect -->
+    <div class="card">
+      <div class="card-header">
+        <h3 style="color:var(--cyan)">Grupo 2 — WalletConnect v2 <span style="font-size:.75rem;color:var(--muted);font-weight:normal">(carteiras mobile via QR code)</span></h3>
+      </div>
+      <p>Conecta qualquer carteira mobile (Trust Wallet, Rainbow, Zerion, etc.) via QR code ou deep link. Requer uma instalação de pacote e um <strong>Project ID</strong> gratuito em <code>cloud.walletconnect.com</code>.</p>
+
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">
+        <span style="background:#064e3b44;border:1px solid #064e3b88;color:#34d399;padding:3px 10px;border-radius:20px;font-size:.78rem">📱 Trust Wallet</span>
+        <span style="background:#064e3b44;border:1px solid #064e3b88;color:#34d399;padding:3px 10px;border-radius:20px;font-size:.78rem">🌈 Rainbow</span>
+        <span style="background:#064e3b44;border:1px solid #064e3b88;color:#34d399;padding:3px 10px;border-radius:20px;font-size:.78rem">🔷 Zerion</span>
+        <span style="background:#064e3b44;border:1px solid #064e3b88;color:#34d399;padding:3px 10px;border-radius:20px;font-size:.78rem">+ qualquer carteira WC</span>
+      </div>
+
+      <div class="params-label">Instalação</div>
+<pre><span class="fn">npm</span> install @walletconnect/ethereum-provider ethers</pre>
+
+<pre><button class="copy-btn" onclick="copyPre(this)">copiar</button><span class="kw">import</span> { EthereumProvider } <span class="kw">from</span> <span class="str">'@walletconnect/ethereum-provider'</span>;
+<span class="kw">import</span> { BrowserProvider }  <span class="kw">from</span> <span class="str">'ethers'</span>;
+
+<span class="kw">let</span> wcProvider;
+
+<span class="kw">async function</span> <span class="fn">conectarWalletConnect</span>() {
+  wcProvider = <span class="kw">await</span> EthereumProvider.<span class="fn">init</span>({
+    projectId:   <span class="str">'SEU_PROJECT_ID'</span>,  <span class="cm">// cloud.walletconnect.com → grátis</span>
+    chains:      [<span class="num">1</span>],               <span class="cm">// 1 = mainnet | 11155111 = Sepolia</span>
+    showQrModal: <span class="kw">true</span>,             <span class="cm">// exibe QR para scan no celular</span>
+  });
+
+  <span class="kw">await</span> wcProvider.<span class="fn">connect</span>();
+  <span class="kw">const</span> address = wcProvider.accounts[<span class="num">0</span>].<span class="fn">toLowerCase</span>();
+  <span class="kw">return</span> address;
+}
+
+<span class="kw">async function</span> <span class="fn">assinarWalletConnect</span>(address, message) {
+  <span class="kw">const</span> signer = <span class="kw">await</span> <span class="kw">new</span> <span class="fn">BrowserProvider</span>(wcProvider).<span class="fn">getSigner</span>();
+  <span class="kw">return</span> signer.<span class="fn">signMessage</span>(message); <span class="cm">// equivalente a personal_sign</span>
+}
+
+<span class="cm">// Uso completo com a API — idêntico ao Grupo 1 daqui em diante</span>
+<span class="kw">const</span> address   = <span class="kw">await</span> <span class="fn">conectarWalletConnect</span>();
+<span class="kw">const</span> { message } = <span class="kw">await</span> (
+  <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">`${API}/auth/challenge?address=${address}`</span>)
+).<span class="fn">json</span>();
+<span class="kw">const</span> signature = <span class="kw">await</span> <span class="fn">assinarWalletConnect</span>(address, message);
+<span class="cm">// → agora chame POST /auth/login com { address, message, signature }</span></pre>
+    </div>
+
+    <!-- GRUPO 3: Web3Modal -->
+    <div class="card">
+      <div class="card-header">
+        <h3 style="color:var(--cyan)">Grupo 3 — Web3Modal <span style="font-size:.75rem;color:var(--muted);font-weight:normal">(modal pronto que lista todas as opções)</span></h3>
+      </div>
+      <p>Abre um modal com botões para MetaMask, WalletConnect, Coinbase e outras — o usuário escolhe. É a opção mais amigável quando se quer suportar múltiplas carteiras sem escrever o código de cada uma.</p>
+
+      <div class="params-label">Instalação</div>
+<pre><span class="fn">npm</span> install @web3modal/ethers ethers</pre>
+
+<pre><button class="copy-btn" onclick="copyPre(this)">copiar</button><span class="kw">import</span> { createWeb3Modal, defaultConfig } <span class="kw">from</span> <span class="str">'@web3modal/ethers'</span>;
+
+<span class="kw">const</span> modal = <span class="fn">createWeb3Modal</span>({
+  projectId:    <span class="str">'SEU_PROJECT_ID'</span>,   <span class="cm">// cloud.walletconnect.com → grátis</span>
+  ethersConfig: <span class="fn">defaultConfig</span>({
+    metadata: {
+      name:        <span class="str">'Nome do seu site'</span>,
+      description: <span class="str">'Descrição'</span>,
+      url:         <span class="str">'https://seusite.com'</span>,
+    }
+  }),
+  chains: [{
+    chainId:         <span class="num">1</span>,
+    name:            <span class="str">'Ethereum'</span>,
+    currency:        <span class="str">'ETH'</span>,
+    explorerUrl:     <span class="str">'https://etherscan.io'</span>,
+    rpcUrl:          <span class="str">'https://cloudflare-eth.com'</span>,
+  }],
+});
+
+<span class="cm">// Botão no HTML: &lt;button onclick="modal.open()"&gt;Conectar carteira&lt;/button&gt;</span>
+
+<span class="cm">// Após o usuário conectar, pegar provedor e assinar</span>
+<span class="kw">async function</span> <span class="fn">getAddressAndSign</span>(message) {
+  <span class="kw">const</span> provider = modal.<span class="fn">getWalletProvider</span>();
+  <span class="kw">if</span> (!provider) <span class="kw">throw new</span> <span class="fn">Error</span>(<span class="str">'Nenhuma carteira conectada'</span>);
+
+  <span class="kw">const</span> ethersProvider = <span class="kw">new</span> ethers.<span class="fn">BrowserProvider</span>(provider);
+  <span class="kw">const</span> signer  = <span class="kw">await</span> ethersProvider.<span class="fn">getSigner</span>();
+  <span class="kw">const</span> address = (<span class="kw">await</span> signer.<span class="fn">getAddress</span>()).<span class="fn">toLowerCase</span>();
+
+  <span class="kw">const</span> signature = <span class="kw">await</span> signer.<span class="fn">signMessage</span>(message);
+  <span class="kw">return</span> { address, signature };
+}</pre>
+    </div>
+
+    <!-- GRUPO 4: wagmi (React) -->
+    <div class="card">
+      <div class="card-header">
+        <h3 style="color:var(--cyan)">Grupo 4 — wagmi <span style="font-size:.75rem;color:var(--muted);font-weight:normal">(React hooks — abstrai tudo acima)</span></h3>
+      </div>
+      <p>Se o seu site usa React, wagmi oferece hooks prontos para conexão e assinatura. Suporta MetaMask, WalletConnect, Coinbase e outras via conectores.</p>
+
+      <div class="params-label">Instalação</div>
+<pre><span class="fn">npm</span> install wagmi viem @tanstack/react-query</pre>
+
+<pre><button class="copy-btn" onclick="copyPre(this)">copiar</button><span class="cm">// wagmi.config.js</span>
+<span class="kw">import</span> { http, createConfig }       <span class="kw">from</span> <span class="str">'wagmi'</span>;
+<span class="kw">import</span> { mainnet }                   <span class="kw">from</span> <span class="str">'wagmi/chains'</span>;
+<span class="kw">import</span> { injected, walletConnect }   <span class="kw">from</span> <span class="str">'wagmi/connectors'</span>;
+
+<span class="kw">export const</span> config = <span class="fn">createConfig</span>({
+  chains:     [mainnet],
+  transports: { [mainnet.id]: <span class="fn">http</span>() },
+  connectors: [
+    <span class="fn">injected</span>(),                                          <span class="cm">// MetaMask / Rabby</span>
+    <span class="fn">walletConnect</span>({ projectId: <span class="str">'SEU_PROJECT_ID'</span> }),      <span class="cm">// carteiras mobile</span>
+  ],
+});
+
+<span class="cm">// Componente de login</span>
+<span class="kw">import</span> { useConnect, useAccount, useSignMessage } <span class="kw">from</span> <span class="str">'wagmi'</span>;
+
+<span class="kw">function</span> <span class="fn">LoginButton</span>() {
+  <span class="kw">const</span> { connect, connectors } = <span class="fn">useConnect</span>();
+  <span class="kw">const</span> { address }             = <span class="fn">useAccount</span>();
+  <span class="kw">const</span> { signMessageAsync }    = <span class="fn">useSignMessage</span>();
+
+  <span class="kw">async function</span> <span class="fn">login</span>() {
+    <span class="cm">// Conectar com o primeiro conector disponível</span>
+    <span class="kw">await</span> <span class="fn">connect</span>({ connector: connectors[<span class="num">0</span>] });
+
+    <span class="kw">const</span> { message } = <span class="kw">await</span> (
+      <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">`${API}/auth/challenge?address=${address}`</span>)
+    ).<span class="fn">json</span>();
+
+    <span class="kw">const</span> signature = <span class="kw">await</span> <span class="fn">signMessageAsync</span>({ message });
+    <span class="cm">// → POST /auth/login com { address, message, signature }</span>
+  }
+
+  <span class="kw">return</span> <span class="str">&lt;button onClick={login}&gt;Conectar carteira&lt;/button&gt;</span>;
+}</pre>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3 style="color:var(--cyan)">Resumo: o que muda e o que não muda</h3></div>
+      <table class="method-table">
+        <thead><tr><th>Item</th><th>Muda conforme a carteira?</th></tr></thead>
+        <tbody>
+          <tr><td>Código de conexão no site</td><td style="color:var(--yellow)">Sim — cada grupo tem seu próprio código</td></tr>
+          <tr><td>Corpo do POST /auth/login</td><td style="color:var(--green)">Não — sempre <code>{ address, message, signature }</code></td></tr>
+          <tr><td>Corpo do POST /decrypt</td><td style="color:var(--green)">Não — sempre <code>{ dlmBase64, publicKey, signature, message }</code></td></tr>
+          <tr><td>Validação no servidor da API</td><td style="color:var(--green)">Não — sempre <code>ethers.verifyMessage()</code></td></tr>
+          <tr><td>Formato da assinatura</td><td style="color:var(--green)">Não — todas produzem ECDSA secp256k1 (EIP-191)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
 
   <!-- ═══ INTRO ═══ -->
   <section id="intro" class="active">
