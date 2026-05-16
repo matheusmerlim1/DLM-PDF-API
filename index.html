@@ -3,191 +3,1248 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DLM-PDF — Leitor</title>
+  <title>DLM-PDF API — Documentação</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  <!-- Fontes -->
-  <link
-    href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap"
-    rel="stylesheet"
-  />
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --border: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --blue: #3b82f6;
+      --blue-dark: #1d4ed8;
+      --green: #22c55e;
+      --yellow: #eab308;
+      --red: #ef4444;
+      --purple: #a78bfa;
+      --orange: #fb923c;
+      --cyan: #22d3ee;
+    }
 
-  <!-- Estilos -->
-  <link rel="stylesheet" href="css/style.css" />
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      min-height: 100vh;
+    }
 
-  <!-- PDF.js (renderização de PDF no browser) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    /* ── Sidebar ── */
+    aside {
+      width: 260px;
+      min-height: 100vh;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 1.5rem 1rem;
+      position: sticky;
+      top: 0;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    aside h1 { font-size: 1rem; color: var(--cyan); margin-bottom: 0.3rem; }
+    aside p  { font-size: 0.72rem; color: var(--muted); margin-bottom: 1.5rem; }
+
+    .nav-section { margin-bottom: 1.2rem; }
+    .nav-section h3 { font-size: 0.68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 0.5rem; padding-left: 0.5rem; }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.45rem 0.6rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      color: var(--muted);
+      transition: background 0.15s, color 0.15s;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+    .nav-item:hover { background: #1e40af22; color: var(--text); }
+    .nav-item.active { background: #1e40af44; color: var(--blue); }
+
+    .method-badge {
+      font-size: 0.6rem;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      font-family: monospace;
+    }
+    .GET    { background: #064e3b; color: #34d399; }
+    .POST   { background: #1e3a8a; color: #93c5fd; }
+
+    /* ── Main ── */
+    main {
+      flex: 1;
+      padding: 2rem;
+      max-width: 860px;
+    }
+
+    section { display: none; }
+    section.active { display: block; }
+
+    h2 { font-size: 1.4rem; color: var(--cyan); margin-bottom: 0.4rem; }
+    .section-desc { color: var(--muted); font-size: 0.88rem; margin-bottom: 1.5rem; line-height: 1.6; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .method-pill {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+      flex-shrink: 0;
+    }
+
+    .endpoint-path {
+      font-family: monospace;
+      font-size: 0.9rem;
+      color: var(--text);
+    }
+
+    .auth-badge {
+      margin-left: auto;
+      font-size: 0.65rem;
+      background: #78350f44;
+      color: var(--yellow);
+      padding: 2px 7px;
+      border-radius: 4px;
+      border: 1px solid #78350f88;
+    }
+
+    .card p { font-size: 0.84rem; color: var(--muted); margin-bottom: 1rem; line-height: 1.6; }
+
+    /* ── Params ── */
+    .params-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 0.5rem; }
+
+    .param-row {
+      display: grid;
+      grid-template-columns: 140px 80px 1fr;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid var(--border);
+      align-items: start;
+    }
+    .param-row:last-child { border-bottom: none; }
+    .param-name { font-family: monospace; color: var(--purple); }
+    .param-type { color: var(--orange); font-family: monospace; font-size: 0.75rem; }
+    .param-desc { color: var(--muted); }
+    .required   { color: var(--red); font-size: 0.65rem; }
+
+    /* ── Code blocks ── */
+    pre {
+      background: #020617;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-x: auto;
+      font-size: 0.8rem;
+      line-height: 1.6;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      margin-bottom: 0.75rem;
+      position: relative;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      background: var(--border);
+      border: none;
+      color: var(--muted);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .copy-btn:hover { background: var(--blue); color: #fff; }
+
+    .kw  { color: #c084fc; }
+    .str { color: #86efac; }
+    .fn  { color: #67e8f9; }
+    .cm  { color: #475569; }
+    .num { color: #fb923c; }
+    .key { color: #93c5fd; }
+
+    /* ── Try it ── */
+    .try-section { margin-top: 1rem; }
+    .try-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 0.5rem; }
+
+    .input-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .try-input {
+      flex: 1;
+      background: #020617;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 0.5rem 0.75rem;
+      font-family: monospace;
+      font-size: 0.82rem;
+    }
+    .try-input:focus { outline: none; border-color: var(--blue); }
+
+    .try-btn {
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0.5rem 1rem;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .try-btn:hover { background: var(--blue-dark); }
+
+    .try-response {
+      display: none;
+      background: #020617;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: monospace;
+      font-size: 0.78rem;
+      line-height: 1.6;
+      max-height: 240px;
+      overflow-y: auto;
+      margin-top: 0.5rem;
+    }
+    .try-response.ok    { border-color: #166534; }
+    .try-response.err   { border-color: var(--red); }
+    .try-response.show  { display: block; }
+
+    /* ── Flow diagram ── */
+    .flow {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin: 1rem 0;
+    }
+    .flow-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+    .flow-line {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 28px;
+      flex-shrink: 0;
+    }
+    .flow-dot {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--blue);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .flow-connector { width: 2px; flex: 1; background: var(--border); min-height: 24px; }
+    .flow-content { padding: 4px 0 20px; }
+    .flow-content strong { font-size: 0.88rem; color: var(--text); }
+    .flow-content p { font-size: 0.8rem; color: var(--muted); margin-top: 2px; line-height: 1.5; }
+    .flow-content code { font-family: monospace; background: #1e3a8a44; padding: 1px 5px; border-radius: 3px; color: var(--cyan); font-size: 0.78rem; }
+
+    /* ── Integration guide ── */
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .tab-btn {
+      background: var(--border);
+      border: none;
+      color: var(--muted);
+      padding: 0.35rem 0.9rem;
+      border-radius: 5px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .tab-btn.active { background: var(--blue); color: #fff; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .alert {
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      font-size: 0.82rem;
+      margin-bottom: 1rem;
+      line-height: 1.6;
+    }
+    .alert-info { background: #1e3a8a22; border: 1px solid #1e3a8a88; color: #93c5fd; }
+    .alert-warn { background: #78350f22; border: 1px solid #78350f88; color: #fcd34d; }
+  </style>
 </head>
 <body>
 
-<!-- ══════════════════════════════════════════════
-     HEADER
-     ══════════════════════════════════════════════ -->
-<header>
-  <div>
-    <div class="logo">DLM-PDF PLATFORM</div>
-    <div class="logo-sub">Sistema de Custódia Digital via Blockchain</div>
+<!-- ═══════════════════════ SIDEBAR ═══════════════════════ -->
+<aside>
+  <h1>📚 DLM-PDF API</h1>
+  <p>v1.0.0 · Railway · dlm-pdf-server-production</p>
+
+  <div class="nav-section">
+    <h3>Visão Geral</h3>
+    <button class="nav-item active" onclick="show('overview', this)">📖 Como funciona</button>
+    <button class="nav-item" onclick="show('integration', this)">🔌 Integrar no seu site</button>
   </div>
-  <span class="chain-pill">ETHEREUM · EVM</span>
-</header>
 
-<!-- ══════════════════════════════════════════════
-     PAINEL: LEITOR
-     ══════════════════════════════════════════════ -->
-<div class="panel active" id="panel-reader">
-  <div class="cols">
-
-    <!-- Sidebar esquerda -->
-    <div class="col-left">
-
-      <!-- 01: Carteira -->
-      <div>
-        <div class="slabel">01 — Carteira Ethereum</div>
-        <div class="card">
-          <div class="card-title">🦊 Autenticação</div>
-          <button class="btn btn-primary" id="btn-connect">Conectar MetaMask</button>
-          <div class="wallet-badge" id="wallet-badge">
-            <div class="dot"></div>
-            <span id="wallet-addr">—</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 02: Arquivo .dlm -->
-      <div>
-        <div class="slabel">02 — Arquivo .dlm</div>
-        <div class="dropzone" id="read-drop">
-          <input type="file" id="read-file" accept=".dlm" />
-          <span class="dz-icon">🔒</span>
-          <div class="dz-title">Arraste o arquivo .dlm</div>
-          <div class="dz-sub">gerado pela editora</div>
-        </div>
-        <div class="file-chip" id="read-chip">🔒 <span id="read-fname"></span></div>
-      </div>
-
-      <!-- 03: License ID (extraído automaticamente) -->
-      <div>
-        <div class="slabel">03 — Licença</div>
-        <div class="card">
-          <div class="field">
-            <label>License ID (lido do cabeçalho do arquivo)</label>
-            <input
-              type="text"
-              id="read-licid"
-              placeholder="Extraído automaticamente do .dlm"
-              readonly
-              style="color:var(--cyan)"
-            />
-          </div>
-        </div>
-      </div>
-
-      <!-- 04: Etapas de validação -->
-      <div>
-        <div class="slabel">04 — Validação</div>
-        <div class="steps">
-          <div class="step" id="rstep-1">
-            <span class="step-ico" data-icon="📂">📂</span>
-            <span class="step-txt">Aguardando arquivo .dlm...</span>
-          </div>
-          <div class="step" id="rstep-2">
-            <span class="step-ico" data-icon="🏷️">🏷️</span>
-            <span class="step-txt">Extrair licenseId do cabeçalho</span>
-          </div>
-          <div class="step" id="rstep-3">
-            <span class="step-ico" data-icon="✍️">✍️</span>
-            <span class="step-txt">Assinar nonce com carteira</span>
-          </div>
-          <div class="step" id="rstep-4">
-            <span class="step-ico" data-icon="⛓️">⛓️</span>
-            <span class="step-txt">Validar posse na Blockchain</span>
-          </div>
-          <div class="step" id="rstep-5">
-            <span class="step-ico" data-icon="🔑">🔑</span>
-            <span class="step-txt">Derivar chave + verificar HMAC</span>
-          </div>
-          <div class="step" id="rstep-6">
-            <span class="step-ico" data-icon="📖">📖</span>
-            <span class="step-txt">Decifrar e renderizar PDF</span>
-          </div>
-        </div>
-
-        <div style="margin-top:.9rem">
-          <div class="progress-bar">
-            <div class="progress-fill" id="read-prog"></div>
-          </div>
-        </div>
-
-        <div style="margin-top:.75rem">
-          <button class="btn btn-primary" id="btn-open" disabled>
-            🔓 Abrir e-book
-          </button>
-        </div>
-      </div>
-
-      <!-- Card de informações da licença validada -->
-      <div class="info-card" id="read-info">
-        <div class="info-row">
-          <span class="info-key">License ID</span>
-          <span class="info-val" id="ri-id">—</span>
-        </div>
-        <div class="info-row">
-          <span class="info-key">Proprietário</span>
-          <span class="info-val ok" id="ri-owner">—</span>
-        </div>
-        <div class="info-row">
-          <span class="info-key">Acesso</span>
-          <span class="info-val ok" id="ri-access">—</span>
-        </div>
-        <div class="info-row">
-          <span class="info-key">TX Hash</span>
-          <span class="info-val" id="ri-tx">—</span>
-        </div>
-        <div class="info-row">
-          <span class="info-key">HMAC</span>
-          <span class="info-val ok" id="ri-hmac">—</span>
-        </div>
-      </div>
-
-    </div><!-- /col-left -->
-
-    <!-- Painel direito: leitor de PDF -->
-    <div class="col-right" id="reader-right">
-
-      <!-- Estado vazio -->
-      <div class="right-empty" id="read-empty">
-        <div class="empty-icon">📚</div>
-        <div class="empty-title">Nenhum livro aberto</div>
-        <div class="empty-sub">
-          Conecte sua carteira, selecione um arquivo .dlm
-          e valide a posse para iniciar a leitura.
-        </div>
-      </div>
-
-      <!-- Toolbar do leitor (visível após abertura) -->
-      <div class="toolbar" id="read-toolbar">
-        <span class="toolbar-info" id="read-pageinfo">—</span>
-        <div class="secure-pill">🔒 <span>EM MEMÓRIA · SEM DISCO</span></div>
-      </div>
-
-      <!-- Páginas do PDF renderizadas em canvas -->
-      <div id="pdf-pages"></div>
-
-    </div><!-- /col-right -->
+  <div class="nav-section">
+    <h3>Autenticação</h3>
+    <button class="nav-item" onclick="show('challenge', this)">
+      <span class="method-badge GET">GET</span> /auth/challenge
+    </button>
+    <button class="nav-item" onclick="show('login', this)">
+      <span class="method-badge POST">POST</span> /auth/login
+    </button>
   </div>
-</div><!-- /panel-reader -->
 
-<!-- ══════════════════════════════════════════════
-     TOASTS
-     ══════════════════════════════════════════════ -->
-<div id="toasts"></div>
+  <div class="nav-section">
+    <h3>Licenças</h3>
+    <button class="nav-item" onclick="show('open', this)">
+      <span class="method-badge POST">POST</span> /licenses/:id/open
+    </button>
+    <button class="nav-item" onclick="show('mine', this)">
+      <span class="method-badge GET">GET</span> /licenses/mine
+    </button>
+    <button class="nav-item" onclick="show('access', this)">
+      <span class="method-badge GET">GET</span> /licenses/:id/access
+    </button>
+  </div>
 
-<!-- ══════════════════════════════════════════════
-     SCRIPTS (ordem de dependência)
-     ══════════════════════════════════════════════ -->
-<script src="js/crypto.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/reader.js"></script>
-<script src="js/main.js"></script>
+  <div class="nav-section">
+    <h3>DRM</h3>
+    <button class="nav-item" onclick="show('encrypt', this)">
+      <span class="method-badge POST">POST</span> /publisher/encrypt
+    </button>
+    <button class="nav-item" onclick="show('decrypt', this)">
+      <span class="method-badge POST">POST</span> /decrypt
+    </button>
+    <button class="nav-item" onclick="show('busca', this)">
+      <span class="method-badge GET">GET</span> /busca
+    </button>
+    <button class="nav-item" onclick="show('transfer', this)">
+      <span class="method-badge POST">POST</span> /transfer
+    </button>
+  </div>
 
+  <div class="nav-section">
+    <h3>Blockchain</h3>
+    <button class="nav-item" onclick="show('wallet', this)">
+      <span class="method-badge GET">GET</span> /wallet/:address
+    </button>
+    <button class="nav-item" onclick="show('books', this)">
+      <span class="method-badge GET">GET</span> /books/:id
+    </button>
+  </div>
+
+  <div class="nav-section">
+    <h3>Sistema</h3>
+    <button class="nav-item" onclick="show('health', this)">
+      <span class="method-badge GET">GET</span> /health
+    </button>
+  </div>
+</aside>
+
+<!-- ═══════════════════════ MAIN ═══════════════════════ -->
+<main>
+
+  <!-- OVERVIEW -->
+  <section id="overview" class="active">
+    <h2>Como o DLM-PDF funciona</h2>
+    <p class="section-desc">
+      O DLM-PDF é um sistema de gestão de posse digital de e-books usando blockchain.
+      Cada cópia de livro é um ativo único na blockchain. O leitor precisa provar que
+      é o dono da licença antes de receber a chave para decriptografar o PDF.
+    </p>
+
+    <div class="card">
+      <div class="card-header"><h3 style="color:var(--cyan)">Arquitetura dos 3 projetos</h3></div>
+      <p>O sistema é composto por três projetos independentes:</p>
+      <pre><span class="cm">┌─────────────────────────────────────────────────────────────────┐
+│  DLM PDF API  (este site)                                        │
+│  Back-end + documentação. Toda a criptografia acontece aqui.     │
+│  URL: https://dlm-pdf-server-production.up.railway.app/api/v1   │
+└────────────────────────┬────────────────────────────────────────┘
+                         │  APIDLM.*  (js/api.js)
+           ┌─────────────┴────────────┐
+           ▼                          ▼
+┌──────────────────┐      ┌───────────────────────┐
+│  Livraria DLM    │      │  DLM-PDF Encriptador   │
+│  Editora gera    │      │  Leitor abre .dlm      │
+│  arquivos .dlm   │      │  (decriptografia via   │
+│  (publisher)     │      │   MetaMask + servidor) │
+└──────────────────┘      └───────────────────────┘</span></pre>
+      <p><strong>Regra de ouro:</strong> toda lógica de criptografia fica nesta API. Os outros dois projetos apenas consomem <code>APIDLM.*</code> via <code>js/api.js</code>.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3 style="color:var(--cyan)">Fluxo de autenticação e leitura</h3></div>
+
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-line"><div class="flow-dot">1</div><div class="flow-connector"></div></div>
+          <div class="flow-content">
+            <strong>Conectar carteira (MetaMask)</strong>
+            <p>O browser pede permissão ao MetaMask para acessar o endereço da carteira do usuário.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-line"><div class="flow-dot">2</div><div class="flow-connector"></div></div>
+          <div class="flow-content">
+            <strong>Solicitar desafio</strong>
+            <p><code>GET /auth/challenge?address=0x...</code> — servidor gera um nonce único com validade de 5 minutos.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-line"><div class="flow-dot">3</div><div class="flow-connector"></div></div>
+          <div class="flow-content">
+            <strong>Assinar com a carteira</strong>
+            <p>MetaMask mostra a mensagem ao usuário. A assinatura prova a posse da chave privada — sem senha, sem cadastro.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-line"><div class="flow-dot">4</div><div class="flow-connector"></div></div>
+          <div class="flow-content">
+            <strong>Login — receber JWT</strong>
+            <p><code>POST /auth/login</code> — servidor verifica a assinatura e emite um token JWT (validade 1h).</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-line"><div class="flow-dot">5</div><div class="flow-connector"></div></div>
+          <div class="flow-content">
+            <strong>Decriptografar o .dlm</strong>
+            <p><code>POST /decrypt</code> — envia o arquivo .dlm + assinatura MetaMask, servidor valida posse e retorna o PDF em Base64.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-line"><div class="flow-dot">6</div></div>
+          <div class="flow-content">
+            <strong>Renderizar em memória</strong>
+            <p>O cliente usa PDF.js para renderizar o PDF em canvas. O conteúdo nunca vai ao disco.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3 style="color:var(--cyan)">Formato do arquivo .dlm</h3></div>
+      <p>O .dlm é um PDF criptografado com um cabeçalho proprietário. Suporta versões v1, v2 e v3:</p>
+      <pre><span class="cm">┌──────────────────────────────────────────────────────────────┐
+│ v1 (60 bytes de cabeçalho)                                    │
+│ MAGIC      4 bytes  "DLM\x01"                                 │
+│ licenseId  8 bytes  uint64 big-endian                         │
+│ padding   16 bytes                                            │
+│ IV        16 bytes  vetor de inicialização AES                │
+│ HMAC      32 bytes  integridade SHA-256                       │
+│ ciphertext N bytes  AES-256-CBC (conteúdo do PDF)             │
+├──────────────────────────────────────────────────────────────┤
+│ v2/v3 (102 bytes de cabeçalho)                                │
+│ MAGIC      4 bytes  "DLM\x02" ou "DLM\x03"                   │
+│ licenseId  8 bytes  uint64 big-endian                         │
+│ ownerAddr 20 bytes  endereço Ethereum do proprietário         │
+│ verifyCode 6 bytes  (v3) código de verificação                │
+│ reserved  16 bytes                                            │
+│ IV        16 bytes  vetor de inicialização AES                │
+│ HMAC      32 bytes  integridade SHA-256                       │
+│ ciphertext N bytes  AES-256-CBC (conteúdo do PDF)             │
+│ [metadata]          plaintext "DLMm{json}" ao final (v3)      │
+└──────────────────────────────────────────────────────────────┘</span></pre>
+      <p>A chave AES <strong>nunca está no arquivo</strong>. Ela é derivada por HKDF-SHA256 da chave mestra do servidor + licenseId. Sem a licença válida, o arquivo não abre.</p>
+    </div>
+  </section>
+
+  <!-- INTEGRATION -->
+  <section id="integration">
+    <h2>Integrar no seu site</h2>
+    <p class="section-desc">Cole o código abaixo no seu projeto para autenticar usuários e abrir arquivos .dlm.</p>
+
+    <div class="alert alert-info">
+      ⚙️ A URL de produção da API é <strong>https://dlm-pdf-server-production.up.railway.app/api/v1</strong>. Para desenvolvimento local, use <code>http://localhost:3000/api/v1</code>.
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3 style="color:var(--cyan)">Passo 1 — Incluir o cliente da API</h3></div>
+      <pre><button class="copy-btn" onclick="copyPre(this)">copiar</button><span class="cm">&lt;!-- Defina a URL da API antes de carregar api.js --&gt;</span>
+<span class="str">&lt;script&gt;</span>
+  window.DLM_API_BASE     = <span class="str">'https://dlm-pdf-server-production.up.railway.app/api/v1'</span>;
+  window.DLM_DRM_API_BASE = <span class="str">'https://dlm-pdf-server-production.up.railway.app/api/v1'</span>;
+<span class="str">&lt;/script&gt;</span>
+<span class="str">&lt;script src="js/api.js"&gt;&lt;/script&gt;</span>
+
+<span class="cm">&lt;!-- PDF.js para renderizar o PDF decriptografado --&gt;</span>
+<span class="str">&lt;script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"&gt;&lt;/script&gt;</span></pre>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3 style="color:var(--cyan)">Passo 2 — Autenticar com MetaMask</h3></div>
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab(this,'tab-auth-js')">JavaScript</button>
+        <button class="tab-btn" onclick="switchTab(this,'tab-auth-curl')">cURL (teste)</button>
+      </div>
+      <div id="tab-auth-js" class="tab-content active">
+<pre><button class="copy-btn" onclick="copyPre(this)">copiar</button><span class="kw">const</span> <span class="fn">API_BASE</span> = <span class="str">'https://dlm-pdf-server-production.up.railway.app/api/v1'</span>;
+
+<span class="kw">async function</span> <span class="fn">loginComMetaMask</span>() {
+  <span class="cm">// 1. Solicita acesso à carteira</span>
+  <span class="kw">const</span> accounts = <span class="kw">await</span> window.ethereum.<span class="fn">request</span>({ method: <span class="str">'eth_requestAccounts'</span> });
+  <span class="kw">const</span> address  = accounts[<span class="num">0</span>].<span class="fn">toLowerCase</span>();
+
+  <span class="cm">// 2. Pega o desafio do servidor</span>
+  <span class="kw">const</span> res1    = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">`<span class="fn">${API_BASE}</span>/auth/challenge?address=<span class="fn">${address}</span>`</span>);
+  <span class="kw">const</span> { message } = <span class="kw">await</span> res1.<span class="fn">json</span>();
+
+  <span class="cm">// 3. Assina (abre popup MetaMask)</span>
+  <span class="kw">const</span> signature = <span class="kw">await</span> window.ethereum.<span class="fn">request</span>({
+    method: <span class="str">'personal_sign'</span>,
+    params: [message, address],
+  });
+
+  <span class="cm">// 4. Faz login e recebe o JWT</span>
+  <span class="kw">const</span> res2  = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">`<span class="fn">${API_BASE}</span>/auth/login`</span>, {
+    method: <span class="str">'POST'</span>,
+    headers: { <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span> },
+    body: <span class="fn">JSON.stringify</span>({ address, message, signature }),
+  });
+  <span class="kw">const</span> { token } = <span class="kw">await</span> res2.<span class="fn">json</span>();
+
+  <span class="kw">return</span> { token, address };
+}</pre>
+      </div>
+      <div id="tab-auth-curl" class="tab-content">
+<pre><button class="copy-btn" onclick="copyPre(this)">copiar</button><span class="cm"># 1. Solicitar desafio</span>
+curl <span class="str">https://dlm-pdf-server-production.up.railway.app/api/v1/auth/challenge?address=0xSEU_ENDERECO</span>
+
+<span class="cm"># 2. (assinar a mensagem com MetaMask ou ethers.js)</span>
+
+<span class="cm"># 3. Login</span>
+curl -X POST <span class="str">https://dlm-pdf-server-production.up.railway.app/api/v1/auth/login</span> \
+  -H <span class="str">'Content-Type: application/json'</span> \
+  -d <span class="str">'{"address":"0x...","message":"DLM:decrypt:...","signature":"0x..."}'</span></pre>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3 style="color:var(--cyan)">Passo 3 — Decriptografar e renderizar um .dlm</h3></div>
+<pre><button class="copy-btn" onclick="copyPre(this)">copiar</button><span class="cm">// Usando APIDLM via window.DLM (js/api.js carregado)</span>
+<span class="kw">const</span> { APIDLM } = window.DLM;
+
+<span class="kw">async function</span> <span class="fn">abrirDLM</span>(dlmFile, walletAddress) {
+  <span class="cm">// Converte arquivo para base64</span>
+  <span class="kw">const</span> buffer  = <span class="kw">await</span> dlmFile.<span class="fn">arrayBuffer</span>();
+  <span class="kw">const</span> bytes   = <span class="kw">new</span> <span class="fn">Uint8Array</span>(buffer);
+  <span class="kw">let</span>   binary  = <span class="str">''</span>;
+  <span class="kw">for</span> (<span class="kw">const</span> b <span class="kw">of</span> bytes) binary += <span class="fn">String.fromCharCode</span>(b);
+  <span class="kw">const</span> dlmBase64 = <span class="fn">btoa</span>(binary);
+
+  <span class="cm">// Assina com MetaMask</span>
+  <span class="kw">const</span> licenseId = <span class="cm">/* leia do cabeçalho do .dlm */</span>;
+  <span class="kw">const</span> message   = <span class="str">`DLM:decrypt:<span class="fn">${licenseId}</span>:<span class="fn">${Date.now()}</span>`</span>;
+  <span class="kw">const</span> signature = <span class="kw">await</span> window.ethereum.<span class="fn">request</span>({
+    method: <span class="str">'personal_sign'</span>, params: [message, walletAddress]
+  });
+
+  <span class="cm">// Decriptografa no servidor</span>
+  <span class="kw">const</span> result = <span class="kw">await</span> APIDLM.<span class="fn">decrypt</span>(dlmBase64, walletAddress, signature, message);
+
+  <span class="cm">// Renderiza com PDF.js</span>
+  <span class="kw">const</span> pdfBytes = <span class="fn">Uint8Array.from</span>(<span class="fn">atob</span>(result.pdfBase64), c => c.<span class="fn">charCodeAt</span>(<span class="num">0</span>));
+  <span class="kw">const</span> pdf      = <span class="kw">await</span> pdfjsLib.<span class="fn">getDocument</span>({ data: pdfBytes.buffer }).promise;
+  <span class="kw">for</span> (<span class="kw">let</span> n = <span class="num">1</span>; n &lt;= pdf.numPages; n++) {
+    <span class="kw">const</span> page     = <span class="kw">await</span> pdf.<span class="fn">getPage</span>(n);
+    <span class="kw">const</span> viewport = page.<span class="fn">getViewport</span>({ scale: <span class="num">1.4</span> });
+    <span class="kw">const</span> canvas   = document.<span class="fn">createElement</span>(<span class="str">'canvas'</span>);
+    canvas.width = viewport.width; canvas.height = viewport.height;
+    container.<span class="fn">appendChild</span>(canvas);
+    <span class="kw">await</span> page.<span class="fn">render</span>({ canvasContext: canvas.<span class="fn">getContext</span>(<span class="str">'2d'</span>), viewport }).promise;
+  }
+}</pre>
+    </div>
+  </section>
+
+  <!-- CHALLENGE -->
+  <section id="challenge">
+    <h2>GET /auth/challenge</h2>
+    <p class="section-desc">Gera um nonce de uso único para o endereço informado. O cliente deve assinar a mensagem retornada com MetaMask e enviá-la para <code>/auth/login</code>. O desafio expira em 5 minutos.</p>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="method-pill GET">GET</span>
+        <span class="endpoint-path">/api/v1/auth/challenge</span>
+      </div>
+      <div class="params-label">Query params</div>
+      <div class="param-row">
+        <span class="param-name">address <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Endereço Ethereum (0x + 40 hex chars)</span>
+      </div>
+
+      <div class="try-section">
+        <div class="try-label">Testar agora</div>
+        <div class="input-row">
+          <input class="try-input" id="challenge-addr" placeholder="0xSeuEnderecoEthereum" value="0xf39Fd6e51aad88F6f4ce6aB8827279cffFb92266" />
+          <button class="try-btn" onclick="tryChallenge()">Enviar →</button>
+        </div>
+        <div class="try-response" id="challenge-resp"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="params-label">Resposta</p>
+<pre><span class="fn">{</span>
+  <span class="key">"message"</span>:   <span class="str">"Bem-vindo ao DLM-PDF!\n\nNonce: abc123...\nExpira em: ..."</span>,
+  <span class="key">"nonce"</span>:     <span class="str">"abc123..."</span>,
+  <span class="key">"expiresAt"</span>: <span class="num">1715000000000</span>
+<span class="fn">}</span></pre>
+    </div>
+  </section>
+
+  <!-- LOGIN -->
+  <section id="login">
+    <h2>POST /auth/login</h2>
+    <p class="section-desc">Verifica a assinatura do desafio e emite um JWT. O token deve ser enviado nas requisições protegidas como <code>Authorization: Bearer &lt;token&gt;</code>.</p>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="method-pill POST">POST</span>
+        <span class="endpoint-path">/api/v1/auth/login</span>
+      </div>
+      <div class="params-label">Body (JSON)</div>
+      <div class="param-row">
+        <span class="param-name">address <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Endereço Ethereum do usuário</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">message <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Mensagem exatamente como retornada por /challenge</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">signature <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Assinatura ECDSA da mensagem (MetaMask / ethers.js)</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="params-label">Resposta de sucesso</p>
+<pre><span class="fn">{</span>
+  <span class="key">"token"</span>:   <span class="str">"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."</span>,
+  <span class="key">"address"</span>: <span class="str">"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"</span>
+<span class="fn">}</span></pre>
+      <p class="params-label" style="margin-top:0.75rem">Erros</p>
+<pre><span class="cm">401</span> <span class="fn">{</span> <span class="key">"error"</span>: <span class="str">"Assinatura inválida: endereço não confere."</span> <span class="fn">}</span>
+<span class="cm">401</span> <span class="fn">{</span> <span class="key">"error"</span>: <span class="str">"Desafio expirado. Solicite um novo."</span> <span class="fn">}</span></pre>
+    </div>
+  </section>
+
+  <!-- OPEN -->
+  <section id="open">
+    <h2>POST /licenses/:id/open</h2>
+    <p class="section-desc">Valida a posse da licença na blockchain e retorna a chave de sessão para decriptografar o arquivo .dlm localmente. Requer JWT.</p>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="method-pill POST">POST</span>
+        <span class="endpoint-path">/api/v1/licenses/:id/open</span>
+        <span class="auth-badge">🔐 Bearer token</span>
+      </div>
+      <div class="params-label">Path params</div>
+      <div class="param-row">
+        <span class="param-name">id <span class="required">*</span></span>
+        <span class="param-type">number</span>
+        <span class="param-desc">ID da licença (lido do cabeçalho do .dlm, bytes 4–12)</span>
+      </div>
+
+      <div class="try-section">
+        <div class="try-label">Testar (precisa de JWT)</div>
+        <div class="input-row">
+          <input class="try-input" id="open-token" placeholder="Cole o token JWT aqui" />
+        </div>
+        <div class="input-row">
+          <input class="try-input" id="open-id" placeholder="licenseId (ex: 1)" value="1" style="max-width:120px" />
+          <button class="try-btn" onclick="tryOpen()">Abrir licença →</button>
+        </div>
+        <div class="try-response" id="open-resp"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="params-label">Resposta de sucesso</p>
+<pre><span class="fn">{</span>
+  <span class="key">"granted"</span>:      <span class="kw">true</span>,
+  <span class="key">"licenseId"</span>:    <span class="str">"1"</span>,
+  <span class="key">"txHash"</span>:       <span class="str">"0xabc..."</span>,
+  <span class="key">"sessionKey"</span>:   <span class="str">"64-char hex — use para decriptografar o .dlm"</span>,
+  <span class="key">"sessionNonce"</span>: <span class="str">"32-char hex"</span>,
+  <span class="key">"expiresAt"</span>:    <span class="num">1715003600000</span>
+<span class="fn">}</span></pre>
+      <p class="params-label" style="margin-top:0.75rem">Erros</p>
+<pre><span class="cm">403</span> <span class="fn">{</span> <span class="key">"error"</span>: <span class="str">"Acesso negado. Você não é o proprietário desta licença."</span> <span class="fn">}</span>
+<span class="cm">401</span> <span class="fn">{</span> <span class="key">"error"</span>: <span class="str">"Token de autenticação ausente."</span> <span class="fn">}</span>
+<span class="cm">503</span> <span class="fn">{</span> <span class="key">"error"</span>: <span class="str">"BLOCKCHAIN_OFFLINE"</span> <span class="fn">}</span></pre>
+    </div>
+  </section>
+
+  <!-- MINE -->
+  <section id="mine">
+    <h2>GET /licenses/mine</h2>
+    <p class="section-desc">Lista todas as licenças pertencentes ao endereço autenticado. Requer JWT.</p>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="method-pill GET">GET</span>
+        <span class="endpoint-path">/api/v1/licenses/mine</span>
+        <span class="auth-badge">🔐 Bearer token</span>
+      </div>
+
+      <div class="try-section">
+        <div class="try-label">Testar</div>
+        <div class="input-row">
+          <input class="try-input" id="mine-token" placeholder="Cole o token JWT aqui" />
+          <button class="try-btn" onclick="tryMine()">Consultar →</button>
+        </div>
+        <div class="try-response" id="mine-resp"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="params-label">Resposta</p>
+<pre><span class="fn">{</span>
+  <span class="key">"licenses"</span>: [
+    <span class="fn">{</span>
+      <span class="key">"licenseId"</span>:    <span class="str">"1"</span>,
+      <span class="key">"bookId"</span>:       <span class="str">"1"</span>,
+      <span class="key">"owner"</span>:        <span class="str">"0x..."</span>,
+      <span class="key">"isLoanActive"</span>: <span class="kw">false</span>
+    <span class="fn">}</span>
+  ]
+<span class="fn">}</span></pre>
+    </div>
+  </section>
+
+  <!-- ACCESS -->
+  <section id="access">
+    <h2>GET /licenses/:id/access</h2>
+    <p class="section-desc">Verificação rápida (sem gas, view-only) se o endereço autenticado tem acesso à licença.</p>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="method-pill GET">GET</span>
+        <span class="endpoint-path">/api/v1/licenses/:id/access</span>
+        <span class="auth-badge">🔐 Bearer token</span>
+      </div>
+
+      <div class="try-section">
+        <div class="try-label">Testar</div>
+        <div class="input-row">
+          <input class="try-input" id="access-token" placeholder="Cole o token JWT aqui" />
+          <input class="try-input" id="access-id" value="1" style="max-width:80px" />
+          <button class="try-btn" onclick="tryAccess()">Verificar →</button>
+        </div>
+        <div class="try-response" id="access-resp"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ENCRYPT -->
+  <section id="encrypt">
+    <h2>POST /publisher/encrypt</h2>
+    <p class="section-desc">Cifra um PDF em formato .dlm v3 vinculado a uma chave pública (carteira do comprador). Usado pela editora (Livraria DLM) para gerar os arquivos distribuídos aos compradores.</p>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="method-pill POST">POST</span>
+        <span class="endpoint-path">/api/v1/publisher/encrypt</span>
+      </div>
+      <div class="params-label">Body (JSON)</div>
+      <div class="param-row">
+        <span class="param-name">pdfBase64 <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Conteúdo do PDF codificado em Base64</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">publicKey <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Endereço Ethereum do comprador (dono do .dlm)</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">userName <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Nome completo do comprador (embutido no arquivo)</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">userCPF <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">CPF do comprador (embutido no arquivo)</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">licenseId</span>
+        <span class="param-type">string</span>
+        <span class="param-desc">ID da licença (gerado automaticamente se omitido)</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">title</span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Título do livro (embutido nos metadados DLMm)</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">author</span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Autor do livro (embutido nos metadados DLMm)</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="params-label">Resposta</p>
+<pre><span class="fn">{</span>
+  <span class="key">"dlmBase64"</span>:  <span class="str">"base64 do arquivo .dlm v3 gerado"</span>,
+  <span class="key">"licenseId"</span>:  <span class="str">"1234567890"</span>,
+  <span class="key">"version"</span>:    <span class="num">3</span>,
+  <span class="key">"size"</span>:       <span class="num">12345</span>
+<span class="fn">}</span></pre>
+    </div>
+
+    <div class="card">
+      <p class="params-label">Uso via APIDLM (js/api.js)</p>
+<pre><button class="copy-btn" onclick="copyPre(this)">copiar</button><span class="kw">const</span> { APIDLM } = window.DLM;
+
+<span class="kw">const</span> result = <span class="kw">await</span> APIDLM.<span class="fn">encrypt</span>(
+  pdfBase64,      <span class="cm">// PDF em base64</span>
+  publicKey,      <span class="cm">// endereço Ethereum do comprador</span>
+  userName,       <span class="cm">// nome completo</span>
+  userCPF,        <span class="cm">// CPF</span>
+  licenseId,      <span class="cm">// opcional</span>
+  title,          <span class="cm">// título do livro</span>
+  author          <span class="cm">// autor do livro</span>
+);
+<span class="cm">// result.dlmBase64 → arquivo .dlm para download</span></pre>
+    </div>
+  </section>
+
+  <!-- DECRYPT -->
+  <section id="decrypt">
+    <h2>POST /decrypt</h2>
+    <p class="section-desc">Decriptografa um arquivo .dlm v2/v3. Requer assinatura MetaMask como prova de posse. Retorna o PDF em Base64 — nunca em disco. Usado pelo DLM-PDF Encriptador.</p>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="method-pill POST">POST</span>
+        <span class="endpoint-path">/api/v1/decrypt</span>
+      </div>
+      <div class="params-label">Body (JSON)</div>
+      <div class="param-row">
+        <span class="param-name">dlmBase64 <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Conteúdo do arquivo .dlm em Base64</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">publicKey <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Endereço Ethereum do solicitante</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">signature <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Assinatura MetaMask da mensagem abaixo</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">message <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Mensagem assinada: <code>DLM:decrypt:{licenseId}:{timestamp}</code></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="params-label">Resposta</p>
+<pre><span class="fn">{</span>
+  <span class="key">"pdfBase64"</span>: <span class="str">"base64 do PDF decriptografado"</span>,
+  <span class="key">"licenseId"</span>: <span class="str">"1234567890"</span>
+<span class="fn">}</span></pre>
+      <p class="params-label" style="margin-top:0.75rem">Erros</p>
+<pre><span class="cm">403</span> <span class="fn">{</span> <span class="key">"error"</span>: <span class="str">"Assinatura inválida ou endereço não confere com o dono do arquivo."</span> <span class="fn">}</span>
+<span class="cm">400</span> <span class="fn">{</span> <span class="key">"error"</span>: <span class="str">"Arquivo .dlm inválido ou corrompido."</span> <span class="fn">}</span></pre>
+    </div>
+
+    <div class="card">
+      <p class="params-label">Uso via APIDLM (js/api.js)</p>
+<pre><button class="copy-btn" onclick="copyPre(this)">copiar</button><span class="kw">const</span> { APIDLM } = window.DLM;
+
+<span class="kw">const</span> result = <span class="kw">await</span> APIDLM.<span class="fn">decrypt</span>(
+  dlmBase64,   <span class="cm">// arquivo .dlm em base64</span>
+  publicKey,   <span class="cm">// endereço Ethereum</span>
+  signature,   <span class="cm">// assinatura MetaMask</span>
+  message      <span class="cm">// mensagem assinada</span>
+);
+<span class="cm">// result.pdfBase64 → PDF para renderizar com PDF.js</span></pre>
+    </div>
+  </section>
+
+  <!-- BUSCA -->
+  <section id="busca">
+    <h2>GET /busca</h2>
+    <p class="section-desc">Retorna todos os livros (título, autor, licenseId) de um endereço Ethereum. Usado pela Livraria DLM no modal de transferência para listar os livros disponíveis para transferir.</p>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="method-pill GET">GET</span>
+        <span class="endpoint-path">/api/v1/busca?publicKey=0x...</span>
+      </div>
+      <div class="params-label">Query params</div>
+      <div class="param-row">
+        <span class="param-name">publicKey <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Endereço Ethereum do usuário</span>
+      </div>
+
+      <div class="try-section">
+        <div class="try-label">Testar</div>
+        <div class="input-row">
+          <input class="try-input" id="busca-addr" placeholder="0xEnderecoEthereum" />
+          <button class="try-btn" onclick="tryBusca()">Buscar →</button>
+        </div>
+        <div class="try-response" id="busca-resp"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="params-label">Resposta</p>
+<pre><span class="fn">{</span>
+  <span class="key">"publicKey"</span>: <span class="str">"0x..."</span>,
+  <span class="key">"books"</span>: [
+    <span class="fn">{</span>
+      <span class="key">"title"</span>:     <span class="str">"Dom Casmurro"</span>,
+      <span class="key">"author"</span>:    <span class="str">"Machado de Assis"</span>,
+      <span class="key">"licenseId"</span>: <span class="str">"1234567890"</span>
+    <span class="fn">}</span>
+  ]
+<span class="fn">}</span></pre>
+    </div>
+
+    <div class="card">
+      <p class="params-label">Uso via APIDLM (js/api.js)</p>
+<pre><button class="copy-btn" onclick="copyPre(this)">copiar</button><span class="kw">const</span> { APIDLM } = window.DLM;
+
+<span class="kw">const</span> result = <span class="kw">await</span> APIDLM.<span class="fn">busca</span>(publicKey);
+<span class="cm">// result.books → Array&lt;{ title, author, licenseId }&gt;</span></pre>
+    </div>
+  </section>
+
+  <!-- TRANSFER -->
+  <section id="transfer">
+    <h2>POST /transfer</h2>
+    <p class="section-desc">Transfere a posse de um .dlm para outro endereço Ethereum. Re-encripta o arquivo com a chave do novo dono e invalida o .dlm do dono anterior. Requer assinatura MetaMask do remetente.</p>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="method-pill POST">POST</span>
+        <span class="endpoint-path">/api/v1/transfer</span>
+      </div>
+      <div class="params-label">Body (JSON)</div>
+      <div class="param-row">
+        <span class="param-name">fromPublicKey <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Endereço Ethereum do remetente (dono atual)</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">toPublicKey <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Endereço Ethereum do destinatário</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">licenseId <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">ID da licença a transferir</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">signature <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Assinatura MetaMask do remetente</span>
+      </div>
+      <div class="param-row">
+        <span class="param-name">message <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Mensagem assinada</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="params-label">Resposta</p>
+<pre><span class="fn">{</span>
+  <span class="key">"success"</span>:      <span class="kw">true</span>,
+  <span class="key">"licenseId"</span>:    <span class="str">"1234567890"</span>,
+  <span class="key">"newOwner"</span>:     <span class="str">"0x..."</span>,
+  <span class="key">"dlmBase64"</span>:    <span class="str">"novo arquivo .dlm para o destinatário"</span>
+<span class="fn">}</span></pre>
+    </div>
+
+    <div class="card">
+      <p class="params-label">Uso via APIDLM (js/api.js)</p>
+<pre><button class="copy-btn" onclick="copyPre(this)">copiar</button><span class="cm">// Verificar destinatário antes de transferir</span>
+<span class="kw">const</span> preview = <span class="kw">await</span> APIDLM.<span class="fn">previewTransfer</span>(toPublicKey, licenseId);
+<span class="cm">// preview.toName → nome do destinatário (confirmar com o usuário)</span>
+
+<span class="cm">// Executar transferência</span>
+<span class="kw">const</span> result = <span class="kw">await</span> APIDLM.<span class="fn">transfer</span>(
+  fromPublicKey, toPublicKey, licenseId, signature, message
+);
+<span class="cm">// result.dlmBase64 → novo .dlm para entregar ao destinatário</span></pre>
+    </div>
+  </section>
+
+  <!-- WALLET -->
+  <section id="wallet">
+    <h2>GET /wallet/:address</h2>
+    <p class="section-desc">
+      Consulta pública — sem autenticação. Retorna todas as licenças registradas na blockchain
+      para um endereço Ethereum.
+    </p>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="method-pill GET">GET</span>
+        <span class="endpoint-path">/api/v1/wallet/:address</span>
+      </div>
+      <div class="params-label">Path params</div>
+      <div class="param-row">
+        <span class="param-name">address <span class="required">*</span></span>
+        <span class="param-type">string</span>
+        <span class="param-desc">Endereço Ethereum (0x + 40 hex chars)</span>
+      </div>
+
+      <div class="try-section">
+        <div class="try-label">Testar — cole qualquer endereço</div>
+        <div class="input-row">
+          <input class="try-input" id="wallet-addr"
+            placeholder="0xEnderecoEthereum"
+            value="0xf39Fd6e51aad88F6f4ce6aB8827279cffFb92266" />
+          <button class="try-btn" onclick="tryWallet()">Consultar →</button>
+        </div>
+        <div class="try-response" id="wallet-resp"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="params-label">Resposta</p>
+<pre><span class="fn">{</span>
+  <span class="key">"address"</span>:       <span class="str">"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"</span>,
+  <span class="key">"blockchain"</span>:    <span class="str">"demo"</span>,
+  <span class="key">"totalLicenses"</span>: <span class="num">1</span>,
+  <span class="key">"licenses"</span>: [
+    <span class="fn">{</span>
+      <span class="key">"licenseId"</span>:    <span class="str">"1"</span>,
+      <span class="key">"bookId"</span>:       <span class="str">"1"</span>,
+      <span class="key">"owner"</span>:        <span class="str">"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"</span>,
+      <span class="key">"isLoanActive"</span>: <span class="kw">false</span>,
+      <span class="key">"book"</span>: <span class="fn">{</span>
+        <span class="key">"title"</span>:      <span class="str">"Livro Demo — DLM-PDF"</span>,
+        <span class="key">"author"</span>:     <span class="str">"Autor Demo"</span>,
+        <span class="key">"royaltyBps"</span>: <span class="str">"500"</span>,
+        <span class="key">"active"</span>:     <span class="kw">true</span>
+      <span class="fn">}</span>
+    <span class="fn">}</span>
+  ]
+<span class="fn">}</span></pre>
+    </div>
+  </section>
+
+  <!-- BOOKS -->
+  <section id="books">
+    <h2>GET /books/:id</h2>
+    <p class="section-desc">Retorna metadados públicos de um livro registrado na blockchain. Não requer autenticação.</p>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="method-pill GET">GET</span>
+        <span class="endpoint-path">/api/v1/books/:id</span>
+      </div>
+
+      <div class="try-section">
+        <div class="try-label">Testar</div>
+        <div class="input-row">
+          <input class="try-input" id="book-id" value="1" style="max-width:80px" placeholder="bookId" />
+          <button class="try-btn" onclick="tryBook()">Consultar →</button>
+        </div>
+        <div class="try-response" id="book-resp"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="params-label">Resposta</p>
+<pre><span class="fn">{</span>
+  <span class="key">"bookId"</span>:      <span class="str">"1"</span>,
+  <span class="key">"title"</span>:       <span class="str">"Livro Demo — DLM-PDF"</span>,
+  <span class="key">"author"</span>:      <span class="str">"Autor Demo"</span>,
+  <span class="key">"publisher"</span>:   <span class="str">"0x..."</span>,
+  <span class="key">"totalCopies"</span>: <span class="str">"1"</span>,
+  <span class="key">"royaltyBps"</span>:  <span class="str">"500"</span>,
+  <span class="key">"active"</span>:      <span class="kw">true</span>
+<span class="fn">}</span></pre>
+    </div>
+  </section>
+
+  <!-- HEALTH -->
+  <section id="health">
+    <h2>GET /health</h2>
+    <p class="section-desc">Status do servidor e da conexão com a blockchain. Retorna 200 em modo demo ou conectado; 503 se offline.</p>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="method-pill GET">GET</span>
+        <span class="endpoint-path">/api/v1/health</span>
+      </div>
+      <div class="try-section">
+        <div class="try-label">Testar</div>
+        <button class="try-btn" onclick="tryHealth()">Verificar status →</button>
+        <div class="try-response" id="health-resp"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  const API = 'https://dlm-pdf-server-production.up.railway.app/api/v1';
+
+  // ── Navegação ──────────────────────────────────────────────
+  function show(id, btn) {
+    document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  // ── Tabs ──────────────────────────────────────────────────
+  function switchTab(btn, id) {
+    const card = btn.closest('.card');
+    card.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    card.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    card.querySelector('#' + id).classList.add('active');
+  }
+
+  // ── Copy ──────────────────────────────────────────────────
+  function copyPre(btn) {
+    const text = btn.parentElement.innerText.replace('copiar\n','');
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = '✓';
+      setTimeout(() => btn.textContent = 'copiar', 1500);
+    });
+  }
+
+  // ── Resposta ──────────────────────────────────────────────
+  function showResp(el, data, ok) {
+    el.textContent = JSON.stringify(data, null, 2);
+    el.className   = 'try-response show ' + (ok ? 'ok' : 'err');
+  }
+
+  // ── Try endpoints ─────────────────────────────────────────
+  async function tryChallenge() {
+    const addr = document.getElementById('challenge-addr').value.trim();
+    const el   = document.getElementById('challenge-resp');
+    try {
+      const r = await fetch(`${API}/auth/challenge?address=${addr}`);
+      showResp(el, await r.json(), r.ok);
+    } catch(e) { showResp(el, { error: e.message }, false); }
+  }
+
+  async function tryOpen() {
+    const token = document.getElementById('open-token').value.trim();
+    const id    = document.getElementById('open-id').value.trim();
+    const el    = document.getElementById('open-resp');
+    try {
+      const r = await fetch(`${API}/licenses/${id}/open`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: '{}',
+      });
+      showResp(el, await r.json(), r.ok);
+    } catch(e) { showResp(el, { error: e.message }, false); }
+  }
+
+  async function tryMine() {
+    const token = document.getElementById('mine-token').value.trim();
+    const el    = document.getElementById('mine-resp');
+    try {
+      const r = await fetch(`${API}/licenses/mine`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      showResp(el, await r.json(), r.ok);
+    } catch(e) { showResp(el, { error: e.message }, false); }
+  }
+
+  async function tryAccess() {
+    const token = document.getElementById('access-token').value.trim();
+    const id    = document.getElementById('access-id').value.trim();
+    const el    = document.getElementById('access-resp');
+    try {
+      const r = await fetch(`${API}/licenses/${id}/access`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      showResp(el, await r.json(), r.ok);
+    } catch(e) { showResp(el, { error: e.message }, false); }
+  }
+
+  async function tryBook() {
+    const id = document.getElementById('book-id').value.trim();
+    const el = document.getElementById('book-resp');
+    try {
+      const r = await fetch(`${API}/books/${id}`);
+      showResp(el, await r.json(), r.ok);
+    } catch(e) { showResp(el, { error: e.message }, false); }
+  }
+
+  async function tryWallet() {
+    const addr = document.getElementById('wallet-addr').value.trim();
+    const el   = document.getElementById('wallet-resp');
+    try {
+      const r = await fetch(`${API}/wallet/${addr}`);
+      showResp(el, await r.json(), r.ok);
+    } catch(e) { showResp(el, { error: e.message }, false); }
+  }
+
+  async function tryBusca() {
+    const addr = document.getElementById('busca-addr').value.trim();
+    const el   = document.getElementById('busca-resp');
+    try {
+      const r = await fetch(`${API}/busca?publicKey=${encodeURIComponent(addr)}`);
+      showResp(el, await r.json(), r.ok);
+    } catch(e) { showResp(el, { error: e.message }, false); }
+  }
+
+  async function tryHealth() {
+    const el = document.getElementById('health-resp');
+    try {
+      const r = await fetch(`${API}/health`);
+      showResp(el, await r.json(), r.ok);
+    } catch(e) { showResp(el, { error: e.message }, false); }
+  }
+</script>
 </body>
 </html>
