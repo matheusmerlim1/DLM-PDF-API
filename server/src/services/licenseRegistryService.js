@@ -47,8 +47,9 @@ export function generateLicenseId() {
  * Cria um novo registro de licença (chamado no encrypt).
  * @param {string} licenseId
  * @param {{ address: string, name: string, cpf: string }} owner
+ * @param {{ title?: string, author?: string }|null} metadata
  */
-export function createLicense(licenseId, owner) {
+export function createLicense(licenseId, owner, metadata = null) {
   ensureDirs();
   const normalized = owner.address.toLowerCase();
   const record = {
@@ -65,9 +66,35 @@ export function createLicense(licenseId, owner) {
       },
     ],
     createdAt: new Date().toISOString(),
+    ...(metadata?.title  && { title:  metadata.title  }),
+    ...(metadata?.author && { author: metadata.author }),
   };
   fs.writeFileSync(licensePath(licenseId), JSON.stringify(record, null, 2));
   return record;
+}
+
+/**
+ * Lista todas as licenças cujo currentOwner é o endereço fornecido.
+ * Usado pelo endpoint GET /busca.
+ */
+export function listLicensesByOwner(address) {
+  ensureDirs();
+  const normalized = address.toLowerCase();
+  const files = fs.readdirSync(LICENSES_DIR).filter(f => f.endsWith(".json"));
+  const books = [];
+  for (const file of files) {
+    try {
+      const record = JSON.parse(fs.readFileSync(path.join(LICENSES_DIR, file), "utf8"));
+      if (record.currentOwner?.address?.toLowerCase() === normalized) {
+        books.push({
+          licenseId: record.licenseId,
+          title:     record.title  || null,
+          author:    record.author || null,
+        });
+      }
+    } catch { /* pula arquivos corrompidos */ }
+  }
+  return books;
 }
 
 /**

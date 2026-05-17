@@ -42,6 +42,7 @@ import {
   updateEncryptedWith,
   getCandidateAddresses,
   generateLicenseId,
+  listLicensesByOwner,
 } from "../services/licenseRegistryService.js";
 import {
   registerUser,
@@ -68,12 +69,14 @@ router.get("/", (req, res) => {
     name: "DLM-PDF API",
     version: "2.0.0",
     drm: {
-      encrypt:         "POST /api/v1/encrypt          — cifra PDF (v3) e registra titular",
-      decrypt:         "POST /api/v1/decrypt          — decifra com cadeia de custódia [assinatura]",
-      transferPreview: "POST /api/v1/transfer/preview — consulta nome+CPF do destinatário",
-      transfer:        "POST /api/v1/transfer         — transfere posse [assinatura do cedente]",
-      registerUser:    "POST /api/v1/users/register   — cadastra endereço → nome + CPF",
-      lookupUser:      "GET  /api/v1/users/:address   — consulta nome+CPF por endereço",
+      encrypt:         "POST /api/v1/encrypt               — cifra PDF (v3) e registra titular",
+      decrypt:         "POST /api/v1/decrypt               — decifra com cadeia de custódia [assinatura]",
+      transferPreview: "POST /api/v1/transfer/preview      — consulta nome+CPF do destinatário",
+      transfer:        "POST /api/v1/transfer              — transfere posse [assinatura do cedente]",
+      registerUser:    "POST /api/v1/users/register        — cadastra endereço → nome + CPF",
+      lookupUser:      "GET  /api/v1/users/:address        — consulta nome+CPF por endereço",
+      busca:           "GET  /api/v1/busca?publicKey=0x... — lista livros do endereço (público)",
+      licensePublic:   "GET  /api/v1/licenses/public/:id  — dono atual de uma licença (público)",
     },
     auth: {
       challenge:  "GET  /api/v1/auth/challenge?address=0x...",
@@ -165,6 +168,45 @@ router.get("/users/:address", (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════
+//  DRM — BUSCA DE LICENÇAS POR ENDEREÇO (público)
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * GET /busca?publicKey=0x...
+ * Lista todos os livros (licenseId, title, author) cujo currentOwner é publicKey.
+ * Público — sem autenticação. Usado pelo frontend para carregar a biblioteca.
+ *
+ * Retorna: { publicKey, books: [{ licenseId, title, author }] }
+ */
+router.get("/busca", (req, res) => {
+  const { publicKey } = req.query;
+
+  if (!publicKey || !/^0x[0-9a-fA-F]{40}$/i.test(publicKey))
+    return res.status(400).json({ error: "publicKey (endereço Ethereum) inválido." });
+
+  const books = listLicensesByOwner(publicKey);
+  res.json({ publicKey: publicKey.toLowerCase(), books });
+});
+
+/**
+ * GET /licenses/public/:id
+ * Consulta pública do dono atual de uma licença.
+ * Retorna: { licenseId, currentOwner: { address }, transferCount, createdAt }
+ */
+router.get("/licenses/public/:id", (req, res) => {
+  const record = loadLicense(req.params.id);
+  if (!record)
+    return res.status(404).json({ error: `Licença ${req.params.id} não encontrada.` });
+
+  res.json({
+    licenseId:     record.licenseId,
+    currentOwner:  { address: record.currentOwner.address },
+    transferCount: record.ownershipHistory.length - 1,
+    createdAt:     record.createdAt,
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
 //  DRM — ENCRIPTOGRAFAR
 // ═══════════════════════════════════════════════════════════
 
@@ -208,10 +250,17 @@ router.post("/encrypt", wrap(async (req, res) => {
   // Cifra no formato v3 (owner-bound + código verificador + metadados opcionais)
   const dlmBuffer = encryptToDLMv3(pdfBuffer, licenseId, publicKey, metadata);
 
-  // Registra usuário e cria licença
+  // Registra usuário
   const owner = { address: publicKey, name: userName.trim(), cpf: userCPF.trim() };
   registerUser(publicKey, owner.name, owner.cpf);
-  createLicense(licenseId, owner);
+
+  // Cria licença apenas se não existir; se já existir, preserva currentOwner e histórico
+  const existingLicense = loadLicense(licenseId);
+  if (existingLicense) {
+    updateEncryptedWith(licenseId, publicKey.toLowerCase());
+  } else {
+    createLicense(licenseId, owner, metadata);
+  }
 
   res.json({
     dlmBase64:   dlmBuffer.toString("base64"),
@@ -329,7 +378,8 @@ router.post("/transfer/preview", wrap(async (req, res) => {
   if (!newOwner) {
     return res.status(404).json({
       error: "Destinatário não cadastrado no sistema. O novo dono deve se registrar antes de receber transferências.",
-      toPublicKey: toPublicKey.toLowerCase(),
+      toPublicKey:   toPublicKey.toLowerCase(),
+      currentOwner:  { address: licenseRecord.currentOwner.address },
     });
   }
 
@@ -759,13 +809,19 @@ router.post("/publisher/encrypt", requireAuth, wrap(async (req, res) => {
   const dlmBuffer = encryptToDLMv3(pdfBuffer, licenseId, ownerAddress, metadata);
 
   // Registra no licenseRegistry para permitir abertura via /decrypt sem blockchain
+  // Se licença já existe, preserva currentOwner — não sobrescreve com dados do publisher
   const existingUser = lookupUser(ownerAddress);
   const ownerInfo = {
     address: ownerAddress,
     name:    existingUser?.name ?? "Publisher",
     cpf:     existingUser?.cpf  ?? "00000000000",
   };
-  createLicense(licenseId, ownerInfo);
+  const existingLicenseRec = loadLicense(licenseId);
+  if (existingLicenseRec) {
+    updateEncryptedWith(licenseId, ownerAddress);
+  } else {
+    createLicense(licenseId, ownerInfo, metadata);
+  }
 
   res.json({
     dlmBase64:    dlmBuffer.toString("base64"),
