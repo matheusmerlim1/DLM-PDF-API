@@ -226,8 +226,21 @@ export function decryptDLMv2(dlmBuffer, connectedAddress) {
  * @param {string} connectedAddress - carteira conectada
  */
 export function decryptAny(dlmBuffer, connectedAddress) {
-  const { version } = parseDLMHeader(dlmBuffer);
+  const { version, ownerAddress } = parseDLMHeader(dlmBuffer);
   if (version === 1) return decryptDLM(dlmBuffer);
+  if (version === 3) {
+    // v3: usa a chave do endereço embutido no cabeçalho (quem cifrou por último).
+    // Para cadeia de custódia completa, usar decryptDLMv3WithChain via POST /decrypt.
+    const result = tryDecryptV3WithAddress(dlmBuffer, ownerAddress);
+    if (!result) {
+      const err = new Error(
+        `Impossível descriptografar: chave derivada de ${ownerAddress.slice(0, 10)}...${ownerAddress.slice(-6)} inválida.`
+      );
+      err.statusCode = 403;
+      throw err;
+    }
+    return result;
+  }
   return decryptDLMv2(dlmBuffer, connectedAddress);
 }
 
