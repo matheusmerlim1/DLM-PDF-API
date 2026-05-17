@@ -132,8 +132,9 @@ export function updateEncryptedWith(licenseId, address) {
  * @param {string} licenseId
  * @param {string} fromAddress - endereço do dono atual (verificado aqui)
  * @param {{ address: string, name: string, cpf: string }} toOwner
+ * @param {{ title?: string, author?: string }|null} metadata - atualiza apenas se o registro não tiver esses campos
  */
-export function transferLicense(licenseId, fromAddress, toOwner) {
+export function transferLicense(licenseId, fromAddress, toOwner, metadata = null) {
   const record = loadLicense(licenseId);
   if (!record) throw new Error(`Licença ${licenseId} não encontrada.`);
 
@@ -166,6 +167,10 @@ export function transferLicense(licenseId, fromAddress, toOwner) {
 
   // encryptedWithAddress permanece o mesmo até o novo dono abrir o arquivo
   // (que re-cifra com as chaves dele)
+
+  // Salva title/author no registro se ainda não existem (cedente os conhecia)
+  if (metadata?.title  && !record.title)  record.title  = metadata.title;
+  if (metadata?.author && !record.author) record.author = metadata.author;
 
   saveLicense(record);
   return record;

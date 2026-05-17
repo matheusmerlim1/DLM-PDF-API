@@ -407,7 +407,7 @@ router.post("/transfer/preview", wrap(async (req, res) => {
  * Retorna: { licenseId, previousOwner, newOwner, transferredAt }
  */
 router.post("/transfer", wrap(async (req, res) => {
-  const { fromPublicKey, toPublicKey, licenseId, signature, message } = req.body;
+  const { fromPublicKey, toPublicKey, licenseId, signature, message, title, author } = req.body;
 
   if (!fromPublicKey || !toPublicKey || !licenseId || !signature || !message)
     return res.status(400).json({
@@ -432,11 +432,12 @@ router.post("/transfer", wrap(async (req, res) => {
   }
 
   // 3. Executa transferência no registro
+  const bookMeta = (title || author) ? { title: title || undefined, author: author || undefined } : null;
   const updatedRecord = transferLicense(licenseId, fromPublicKey, {
     address: toPublicKey,
     name:    newOwnerUser.name,
     cpf:     newOwnerUser.cpf,
-  });
+  }, bookMeta);
 
   res.json({
     licenseId,

@@ -275,3 +275,65 @@ describe("DRM v3 — fluxo completo POST /decrypt: re-encriptação para o novo 
     expect(header.version).toBe(3);
   });
 });
+
+// ── Regressão: transferLicense preserva title/author fornecidos pelo cedente ─────
+// Bug: após transferência, o novo dono via /busca recebia title=null porque o
+// registro JSON antigo não tinha esses campos. O cedente via localStorage sabia
+// o título, mas o novo dono não tinha esse localStorage — exibia "Licença #N".
+// Correção: /transfer aceita title/author no body e transferLicense os grava no
+// registro apenas se ainda não existirem (não sobrescreve dados reais).
+
+import {
+  createLicense,
+  transferLicense,
+  listLicensesByOwner,
+} from "../services/licenseRegistryService.js";
+import fs   from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname2 = path.dirname(fileURLToPath(import.meta.url));
+const TEST_STORAGE = path.resolve(__dirname2, "../../../storage/licenses");
+
+const ADDR_PUB = "0x" + "1".repeat(40);
+const ADDR_NEW = "0x" + "2".repeat(40);
+
+describe("Regressão: title/author preservados após transferência", () => {
+  const licId = "test-transfer-meta-" + Date.now();
+
+  afterAll(() => {
+    const p = path.join(TEST_STORAGE, `${licId}.json`);
+    if (fs.existsSync(p)) fs.unlinkSync(p);
+  });
+
+  test("registro criado SEM title/author recebe os metadados na transferência", () => {
+    // Simula licença criada antes de title/author serem suportados (registro antigo)
+    createLicense(licId, { address: ADDR_PUB, name: "Publisher", cpf: "12345678901" }, null);
+
+    transferLicense(licId, ADDR_PUB, { address: ADDR_NEW, name: "Novo Dono", cpf: "98765432100" },
+      { title: "livro v50", author: "Autor Teste" });
+
+    const books = listLicensesByOwner(ADDR_NEW);
+    const book  = books.find(b => b.licenseId === licId);
+    expect(book).toBeDefined();
+    expect(book.title).toBe("livro v50");
+    expect(book.author).toBe("Autor Teste");
+  });
+
+  test("registro criado COM title/author não tem seus dados sobrescritos na transferência", () => {
+    const licId2 = licId + "-b";
+    createLicense(licId2, { address: ADDR_PUB, name: "Publisher", cpf: "12345678901" },
+      { title: "Título Original", author: "Autor Original" });
+
+    // Cedente tenta "corrigir" com dados diferentes — não deve sobrescrever
+    transferLicense(licId2, ADDR_PUB, { address: ADDR_NEW, name: "Novo Dono", cpf: "98765432100" },
+      { title: "Outro Título", author: "Outro Autor" });
+
+    const books = listLicensesByOwner(ADDR_NEW);
+    const book  = books.find(b => b.licenseId === licId2);
+    expect(book.title).toBe("Título Original");
+    expect(book.author).toBe("Autor Original");
+
+    fs.unlinkSync(path.join(TEST_STORAGE, `${licId2}.json`));
+  });
+});
