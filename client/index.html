@@ -212,7 +212,7 @@
 
 <script type="module">
   // ─── Configuração ────────────────────────────────────────────────────────
-  const API_BASE  = "http://localhost:3000/api/v1";
+  const API_BASE  = "https://dlm-pdf-server-production.up.railway.app/api/v1";
   const WORKER    = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
   pdfjsLib.GlobalWorkerOptions.workerSrc = WORKER;
@@ -220,6 +220,7 @@
   // ─── Estado ──────────────────────────────────────────────────────────────
   let jwt     = null;
   let address = null;
+  let signer  = null;
 
   // ─── UI helpers ──────────────────────────────────────────────────────────
   function toast(msg, type = "info") {
@@ -251,8 +252,8 @@
 
       const provider = new ethers.BrowserProvider(window.ethereum);
       await provider.send("eth_requestAccounts", []);
-      const signer   = await provider.getSigner();
-      address        = (await signer.getAddress()).toLowerCase();
+      signer  = await provider.getSigner();
+      address = (await signer.getAddress()).toLowerCase();
 
       // Solicita desafio
       const cRes = await fetch(`${API_BASE}/auth/challenge?address=${address}`);
@@ -300,44 +301,49 @@
 
   // ─── Abertura do arquivo .dlm ─────────────────────────────────────────────
   async function handleFile(file) {
-    if (!jwt) { toast("Conecte sua carteira primeiro.", "error"); return; }
+    if (!signer) { toast("Conecte sua carteira primeiro.", "error"); return; }
     if (!file.name.endsWith(".dlm")) { toast("Arquivo deve ter extensão .dlm", "error"); return; }
 
     document.getElementById("reader-card").style.display = "block";
     showLoading(true);
 
     try {
-      const dlmBuffer  = await file.arrayBuffer();
-      const licenseId  = readLicenseId(dlmBuffer);
+      const dlmBuffer = await file.arrayBuffer();
+      const licenseId = readLicenseId(dlmBuffer);
 
-      // Mostra info da licença
       const infoEl = document.getElementById("license-info");
       infoEl.style.display = "block";
-      infoEl.textContent   = `Arquivo: ${file.name} | License ID: ${licenseId} | Validando posse na blockchain...`;
+      infoEl.textContent   = `Arquivo: ${file.name} | License ID: ${licenseId} | Assinando com MetaMask...`;
 
-      // Handshake com o servidor
-      const hRes = await fetch(`${API_BASE}/licenses/${licenseId}/open`, {
+      // Prova posse da carteira via assinatura — o servidor valida no registro de licenças
+      const message   = `DLM:decrypt:${licenseId}:${Date.now()}`;
+      const signature = await signer.signMessage(message);
+
+      infoEl.textContent = `Arquivo: ${file.name} | License ID: ${licenseId} | Validando posse...`;
+
+      // POST /decrypt: valida no registro de licenças (não no ERC-721),
+      // decripta com cadeia de custódia e retorna o PDF diretamente
+      const dlmBase64 = arrayBufferToBase64(dlmBuffer);
+      const dRes = await fetch(`${API_BASE}/decrypt`, {
         method:  "POST",
-        headers: {
-          "Content-Type":  "application/json",
-          "Authorization": `Bearer ${jwt}`,
-        },
-        body: JSON.stringify({}),
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ dlmBase64, publicKey: address, signature, message }),
       });
 
-      if (hRes.status === 403) {
-        const err = await hRes.json();
-        throw new Error(err.error);
+      if (dRes.status === 403) {
+        const err = await dRes.json();
+        throw new Error(err.error || "Acesso negado. Você não é o proprietário desta licença.");
       }
-      if (!hRes.ok) throw new Error("Falha na validação de acesso.");
+      if (!dRes.ok) {
+        const err = await dRes.json();
+        throw new Error(err.error || "Falha na validação de acesso.");
+      }
 
-      const { sessionKey, txHash } = await hRes.json();
-      infoEl.textContent = `✅ Acesso validado | License ID: ${licenseId} | TX: ${txHash?.slice(0,10)}...`;
+      const { pdfBase64, owner } = await dRes.json();
+      infoEl.textContent = `✅ Acesso validado | License ID: ${licenseId} | Proprietário: ${owner?.address?.slice(0,10)}...`;
 
-      // Decripta em memória
-      const pdfBuffer = await decryptDLM(dlmBuffer, sessionKey);
-
-      // Renderiza
+      // Converte base64 → ArrayBuffer e renderiza
+      const pdfBuffer = base64ToArrayBuffer(pdfBase64);
       showLoading(false);
       await renderPDF(pdfBuffer);
       toast("E-book aberto com sucesso!", "success");
@@ -347,25 +353,6 @@
       document.getElementById("reader-card").style.display = "none";
       toast(err.message, "error");
     }
-  }
-
-  // ─── Decriptação Web Crypto ───────────────────────────────────────────────
-  async function decryptDLM(dlmBuffer, sessionKey) {
-    const bytes = new Uint8Array(dlmBuffer);
-    // Valida magic DLM\x01
-    if (bytes[0] !== 0x44 || bytes[1] !== 0x4C || bytes[2] !== 0x4D || bytes[3] !== 0x01) {
-      throw new Error("Formato de arquivo .dlm inválido.");
-    }
-
-    const iv         = bytes.slice(12, 28);
-    const ciphertext = bytes.slice(60);
-
-    const keyBytes  = hexToBytes(sessionKey);
-    const cryptoKey = await crypto.subtle.importKey(
-      "raw", keyBytes, { name: "AES-CBC" }, false, ["decrypt"]
-    );
-
-    return await crypto.subtle.decrypt({ name: "AES-CBC", iv }, cryptoKey, ciphertext);
   }
 
   // ─── Renderização PDF.js ──────────────────────────────────────────────────
@@ -397,10 +384,18 @@
     return (BigInt(high) * 0x100000000n + BigInt(low)).toString();
   }
 
-  function hexToBytes(hex) {
-    const bytes = new Uint8Array(hex.length / 2);
-    for (let i = 0; i < hex.length; i += 2) bytes[i/2] = parseInt(hex.substr(i, 2), 16);
-    return bytes;
+  function arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  }
+
+  function base64ToArrayBuffer(b64) {
+    const binary = atob(b64);
+    const bytes  = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes.buffer;
   }
 </script>
 
