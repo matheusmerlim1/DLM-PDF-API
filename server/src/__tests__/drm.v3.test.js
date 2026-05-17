@@ -201,3 +201,77 @@ describe("DRM v3 — decryptAny corrige bug de v3-como-v2", () => {
     expect(() => decryptAny(corrupted, FAKE_ADDRESS_A)).toThrow(/Impossível|inválid/i);
   });
 });
+
+// ── Regressão: fluxo completo POST /decrypt com re-encriptação ───────────────
+// Cenário: A cifra → transfere para B → B abre via cadeia (servidor re-cifra para B)
+//          → B abre novamente, agora diretamente sem cadeia → A não consegue mais.
+//
+// Este teste valida a sequência exata executada pela rota POST /decrypt:
+//   1. getCandidateAddresses(licenseRecord)
+//   2. decryptDLMv3WithChain(dlmBuffer, candidates)
+//   3. encryptToDLMv3(pdf, licenseId, publicKey)   ← re-cifra para o novo dono
+//   4. updateEncryptedWith(licenseId, publicKey)    ← atualiza o registro
+//
+// Após o passo 3, o arquivo no servidor usa a chave de B. Próximas aberturas
+// não precisam da cadeia — apenas a chave direta de B.
+
+describe("DRM v3 — fluxo completo POST /decrypt: re-encriptação para o novo dono", () => {
+  function makeMockRecord(encryptedWith, currentOwner) {
+    return {
+      licenseId: LICENSE_ID,
+      currentOwner: { address: currentOwner },
+      encryptedWithAddress: encryptedWith,
+      ownershipHistory: [
+        { address: encryptedWith, acquiredAt: "2026-01-01T00:00:00Z", releasedAt: "2026-01-02T00:00:00Z" },
+        { address: currentOwner,  acquiredAt: "2026-01-02T00:00:00Z", releasedAt: null },
+      ],
+    };
+  }
+
+  test("B abre via cadeia e o arquivo re-cifrado com chave de B pode ser aberto diretamente", () => {
+    // Passo 1: A cifra o arquivo original
+    const dlmByA = encryptToDLMv3(SAMPLE_PDF, LICENSE_ID, FAKE_ADDRESS_A);
+
+    // Passo 2: Registro após transferência — currentOwner=B, encryptedWith=A
+    const record     = makeMockRecord(FAKE_ADDRESS_A, FAKE_ADDRESS_B);
+    const candidates = getCandidateAddresses(record);
+
+    // Passo 3: servidor decripta via cadeia (encontra chave de A)
+    const { pdf, decryptedWith } = decryptDLMv3WithChain(dlmByA, candidates);
+    expect(pdf.equals(SAMPLE_PDF)).toBe(true);
+    expect(decryptedWith.toLowerCase()).toBe(FAKE_ADDRESS_A.toLowerCase());
+
+    // Passo 4: servidor re-cifra com chave de B (simula encryptToDLMv3 + updateEncryptedWith)
+    const dlmByB = encryptToDLMv3(pdf, LICENSE_ID, FAKE_ADDRESS_B);
+
+    // Passo 5: B abre novamente — agora usa a chave direta (sem cadeia)
+    const result = tryDecryptV3WithAddress(dlmByB, FAKE_ADDRESS_B);
+    expect(result).not.toBeNull();
+    expect(result.pdf.equals(SAMPLE_PDF)).toBe(true);
+  });
+
+  test("após re-cifrar para B, A não consegue mais abrir o arquivo", () => {
+    const dlmByA     = encryptToDLMv3(SAMPLE_PDF, LICENSE_ID, FAKE_ADDRESS_A);
+    const record     = makeMockRecord(FAKE_ADDRESS_A, FAKE_ADDRESS_B);
+    const candidates = getCandidateAddresses(record);
+    const { pdf }    = decryptDLMv3WithChain(dlmByA, candidates);
+    const dlmByB     = encryptToDLMv3(pdf, LICENSE_ID, FAKE_ADDRESS_B);
+
+    // A tenta abrir o arquivo re-cifrado para B — deve falhar
+    const resultA = tryDecryptV3WithAddress(dlmByB, FAKE_ADDRESS_A);
+    expect(resultA).toBeNull();
+  });
+
+  test("cabeçalho do arquivo re-cifrado reflete o novo dono (B)", () => {
+    const dlmByA     = encryptToDLMv3(SAMPLE_PDF, LICENSE_ID, FAKE_ADDRESS_A);
+    const record     = makeMockRecord(FAKE_ADDRESS_A, FAKE_ADDRESS_B);
+    const candidates = getCandidateAddresses(record);
+    const { pdf }    = decryptDLMv3WithChain(dlmByA, candidates);
+    const dlmByB     = encryptToDLMv3(pdf, LICENSE_ID, FAKE_ADDRESS_B);
+
+    const header = parseDLMHeader(dlmByB);
+    expect(header.ownerAddress.toLowerCase()).toBe(FAKE_ADDRESS_B.toLowerCase());
+    expect(header.licenseId).toBe(LICENSE_ID);
+    expect(header.version).toBe(3);
+  });
+});
