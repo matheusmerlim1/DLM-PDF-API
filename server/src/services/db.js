@@ -27,47 +27,59 @@ let pool = null;
  * Inicializa a conexão com o banco de dados.
  * Deve ser chamado uma vez no startup, antes de qualquer rota ser servida.
  */
+const CREATE_TABLES_SQL = `
+  CREATE TABLE IF NOT EXISTS dlm_users (
+    address     TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    cpf         TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS dlm_licenses (
+    license_id            TEXT PRIMARY KEY,
+    current_owner_address TEXT NOT NULL,
+    data                  TEXT NOT NULL,
+    updated_at            TEXT NOT NULL
+  );
+`;
+
+async function _tryConnect(pg, url, sslMode) {
+  const candidate = new pg.Pool({
+    connectionString: url,
+    ssl:              sslMode,
+    max:              10,
+    idleTimeoutMillis:        30_000,
+    connectionTimeoutMillis:  5_000,
+  });
+  await candidate.query(CREATE_TABLES_SQL);
+  return candidate;
+}
+
 export async function initDB() {
   if (!process.env.DATABASE_URL) {
     return; // usa filesystem
   }
 
-  try {
-    const { default: pg } = await import("pg");
-    const url = process.env.DATABASE_URL;
-    const isInternal = url.includes("localhost") ||
-                       url.includes("127.0.0.1") ||
-                       url.includes(".railway.internal");
+  const { default: pg } = await import("pg");
+  const url = process.env.DATABASE_URL;
 
-    pool = new pg.Pool({
-      connectionString: url,
-      ...(!isInternal && { ssl: { rejectUnauthorized: false } }),
-      max: 10,
-      idleTimeoutMillis: 30_000,
-      connectionTimeoutMillis: 5_000,
-    });
+  // Tenta sem SSL primeiro (interno Railway), depois com SSL (externo)
+  const attempts = [
+    { label: "sem SSL",       ssl: false },
+    { label: "SSL permissivo", ssl: { rejectUnauthorized: false } },
+  ];
 
-    // Cria tabelas se não existirem
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS dlm_users (
-        address     TEXT PRIMARY KEY,
-        name        TEXT NOT NULL,
-        cpf         TEXT NOT NULL,
-        updated_at  TEXT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS dlm_licenses (
-        license_id            TEXT PRIMARY KEY,
-        current_owner_address TEXT NOT NULL,
-        data                  TEXT NOT NULL,
-        updated_at            TEXT NOT NULL
-      );
-    `);
-  } catch (err) {
-    console.error(`⚠️  PostgreSQL indisponível (${err.message}). Usando filesystem como fallback.`);
-    if (pool) { pool.end().catch(() => {}); }
-    pool = null;
+  for (const { label, ssl } of attempts) {
+    try {
+      pool = await _tryConnect(pg, url, ssl);
+      console.log(`✅ PostgreSQL conectado (${label}).`);
+      return;
+    } catch (err) {
+      console.warn(`⚠️  PostgreSQL falhou [${label}]: ${err.message}`);
+      if (pool) { pool.end().catch(() => {}); pool = null; }
+    }
   }
+
+  console.error("❌ PostgreSQL indisponível após todas as tentativas. Usando filesystem.");
 }
 
 export function dbMode() {
