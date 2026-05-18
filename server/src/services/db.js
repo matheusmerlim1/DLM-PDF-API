@@ -32,35 +32,42 @@ export async function initDB() {
     return; // usa filesystem
   }
 
-  const { default: pg } = await import("pg");
-  const isLocal = process.env.DATABASE_URL.includes("localhost") ||
-                  process.env.DATABASE_URL.includes("127.0.0.1") ||
-                  process.env.DATABASE_URL.includes(".railway.internal");
+  try {
+    const { default: pg } = await import("pg");
+    const url = process.env.DATABASE_URL;
+    const isInternal = url.includes("localhost") ||
+                       url.includes("127.0.0.1") ||
+                       url.includes(".railway.internal");
 
-  pool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL,
-    ...(!isLocal && { ssl: { rejectUnauthorized: false } }),
-    max: 10,
-    idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 5_000,
-  });
+    pool = new pg.Pool({
+      connectionString: url,
+      ...(!isInternal && { ssl: { rejectUnauthorized: false } }),
+      max: 10,
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 5_000,
+    });
 
-  // Cria tabelas se não existirem
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS dlm_users (
-      address     TEXT PRIMARY KEY,
-      name        TEXT NOT NULL,
-      cpf         TEXT NOT NULL,
-      updated_at  TEXT NOT NULL
-    );
+    // Cria tabelas se não existirem
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS dlm_users (
+        address     TEXT PRIMARY KEY,
+        name        TEXT NOT NULL,
+        cpf         TEXT NOT NULL,
+        updated_at  TEXT NOT NULL
+      );
 
-    CREATE TABLE IF NOT EXISTS dlm_licenses (
-      license_id            TEXT PRIMARY KEY,
-      current_owner_address TEXT NOT NULL,
-      data                  TEXT NOT NULL,
-      updated_at            TEXT NOT NULL
-    );
-  `);
+      CREATE TABLE IF NOT EXISTS dlm_licenses (
+        license_id            TEXT PRIMARY KEY,
+        current_owner_address TEXT NOT NULL,
+        data                  TEXT NOT NULL,
+        updated_at            TEXT NOT NULL
+      );
+    `);
+  } catch (err) {
+    console.error(`⚠️  PostgreSQL indisponível (${err.message}). Usando filesystem como fallback.`);
+    if (pool) { pool.end().catch(() => {}); }
+    pool = null;
+  }
 }
 
 export function dbMode() {
