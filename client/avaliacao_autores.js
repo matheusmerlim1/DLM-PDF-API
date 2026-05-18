@@ -13,17 +13,17 @@ document.querySelectorAll('.opt-item input').forEach(inp => {
 });
 
 function mostrarConfirmacao(sucesso, data) {
+  if (sucesso) {
+    window.location.href = '../index.html';
+    return;
+  }
   document.getElementById('form').style.display = 'none';
   document.getElementById('btn-submit').closest('.submit-area').style.display = 'none';
   const resBox = document.getElementById('resultado');
   resBox.style.display = 'block';
   resBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  if (sucesso) {
-    document.getElementById('res-ok').style.display = 'block';
-  } else {
-    document.getElementById('res-erro').style.display = 'block';
-    document.getElementById('json-out').textContent = JSON.stringify(data, null, 2);
-  }
+  document.getElementById('res-erro').style.display = 'block';
+  document.getElementById('json-out').textContent = JSON.stringify(data, null, 2);
 }
 
 document.getElementById('form').addEventListener('submit', async e => {
