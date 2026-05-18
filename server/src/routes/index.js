@@ -56,6 +56,7 @@ import {
   listarAvaliacoes,
   excluirAvaliacao,
 } from "../services/avaliacaoService.js";
+import { enviarAvaliacao } from "../services/emailService.js";
 import crypto from "crypto";
 
 // Janela de validade da assinatura MetaMask: 5 minutos
@@ -916,6 +917,12 @@ router.post("/avaliacoes", wrap(async (req, res) => {
     return res.status(400).json({ error: "Nenhuma resposta encontrada no payload." });
   }
   const record = await salvarAvaliacao(data);
+
+  // Dispara e-mail em background — falha silenciosa para não travar a resposta
+  enviarAvaliacao(record).catch(err =>
+    console.error("Erro ao enviar e-mail de avaliação:", err.message)
+  );
+
   res.status(201).json({ ok: true, id: record.id, createdAt: record.createdAt });
 }));
 
