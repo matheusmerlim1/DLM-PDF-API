@@ -15,6 +15,7 @@ import { createLogger, transports, format } from "winston";
 
 import routes                from "./routes/index.js";
 import { blockchainService } from "./services/blockchainService.js";
+import { initDB, dbMode }    from "./services/db.js";
 
 // ─── Logger ───────────────────────────────────────────────────────────────────
 const logger = createLogger({
@@ -64,6 +65,10 @@ const PORT = parseInt(process.env.PORT || "3000", 10);
 
 async function start() {
   logger.info("🚀 Iniciando servidor DLM-PDF...");
+
+  // Inicializa persistência (PostgreSQL ou filesystem)
+  await initDB();
+  logger.info(`💾 Persistência: ${dbMode().toUpperCase()}`);
 
   // Tenta conectar à blockchain — nunca lança exceção, usa modo degraded
   await blockchainService.init();

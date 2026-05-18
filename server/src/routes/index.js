@@ -135,7 +135,7 @@ function verifyMetaMaskSignature(address, message, signature) {
  * Cadastra (ou atualiza) nome e CPF de um endereço Ethereum.
  * Body: { address, name, cpf }
  */
-router.post("/users/register", (req, res) => {
+router.post("/users/register", wrap(async (req, res) => {
   const { address, name, cpf } = req.body;
 
   if (!address || !name || !cpf)
@@ -147,25 +147,25 @@ router.post("/users/register", (req, res) => {
   if (cpf.replace(/\D/g, "").length !== 11)
     return res.status(400).json({ error: "cpf deve ter 11 dígitos." });
 
-  const user = registerUser(address, name.trim(), cpf.trim());
+  const user = await registerUser(address, name.trim(), cpf.trim());
   res.json({ message: "Usuário registrado com sucesso.", user });
-});
+}));
 
 /**
  * GET /users/:address
  * Consulta nome e CPF pelo endereço Ethereum (público — sem auth).
  */
-router.get("/users/:address", (req, res) => {
+router.get("/users/:address", wrap(async (req, res) => {
   const { address } = req.params;
 
   if (!/^0x[0-9a-fA-F]{40}$/i.test(address))
     return res.status(400).json({ error: "address Ethereum inválido." });
 
-  const user = lookupUser(address);
+  const user = await lookupUser(address);
   if (!user) return res.status(404).json({ error: "Usuário não cadastrado." });
 
   res.json({ address: user.address, name: user.name, cpf: user.cpf });
-});
+}));
 
 // ═══════════════════════════════════════════════════════════
 //  DRM — BUSCA DE LICENÇAS POR ENDEREÇO (público)
@@ -178,23 +178,23 @@ router.get("/users/:address", (req, res) => {
  *
  * Retorna: { publicKey, books: [{ licenseId, title, author }] }
  */
-router.get("/busca", (req, res) => {
+router.get("/busca", wrap(async (req, res) => {
   const { publicKey } = req.query;
 
   if (!publicKey || !/^0x[0-9a-fA-F]{40}$/i.test(publicKey))
     return res.status(400).json({ error: "publicKey (endereço Ethereum) inválido." });
 
-  const books = listLicensesByOwner(publicKey);
+  const books = await listLicensesByOwner(publicKey);
   res.json({ publicKey: publicKey.toLowerCase(), books });
-});
+}));
 
 /**
  * GET /licenses/public/:id
  * Consulta pública do dono atual de uma licença.
  * Retorna: { licenseId, currentOwner: { address }, transferCount, createdAt }
  */
-router.get("/licenses/public/:id", (req, res) => {
-  const record = loadLicense(req.params.id);
+router.get("/licenses/public/:id", wrap(async (req, res) => {
+  const record = await loadLicense(req.params.id);
   if (!record)
     return res.status(404).json({ error: `Licença ${req.params.id} não encontrada.` });
 
@@ -204,7 +204,7 @@ router.get("/licenses/public/:id", (req, res) => {
     transferCount: record.ownershipHistory.length - 1,
     createdAt:     record.createdAt,
   });
-});
+}));
 
 // ═══════════════════════════════════════════════════════════
 //  DRM — ENCRIPTOGRAFAR
@@ -252,14 +252,14 @@ router.post("/encrypt", wrap(async (req, res) => {
 
   // Registra usuário
   const owner = { address: publicKey, name: userName.trim(), cpf: userCPF.trim() };
-  registerUser(publicKey, owner.name, owner.cpf);
+  await registerUser(publicKey, owner.name, owner.cpf);
 
   // Cria licença apenas se não existir; se já existir, preserva currentOwner e histórico
-  const existingLicense = loadLicense(licenseId);
+  const existingLicense = await loadLicense(licenseId);
   if (existingLicense) {
-    updateEncryptedWith(licenseId, publicKey.toLowerCase());
+    await updateEncryptedWith(licenseId, publicKey.toLowerCase());
   } else {
-    createLicense(licenseId, owner, metadata);
+    await createLicense(licenseId, owner, metadata);
   }
 
   res.json({
@@ -316,7 +316,7 @@ router.post("/decrypt", wrap(async (req, res) => {
   const { licenseId } = header;
 
   // 3. Verifica se o publicKey é o dono atual no registro
-  const licenseRecord = loadLicense(licenseId);
+  const licenseRecord = await loadLicense(licenseId);
   if (!licenseRecord) {
     return res.status(404).json({ error: `Licença ${licenseId} não encontrada no registro.` });
   }
@@ -335,7 +335,7 @@ router.post("/decrypt", wrap(async (req, res) => {
 
   // 6. Re-cifra com as chaves do dono atual, preservando os metadados
   const newDlmBuffer = encryptToDLMv3(pdf, licenseId, publicKey, metadata ?? null);
-  updateEncryptedWith(licenseId, publicKey);
+  await updateEncryptedWith(licenseId, publicKey);
 
   res.json({
     pdfBase64:     pdf.toString("base64"),
@@ -369,12 +369,12 @@ router.post("/transfer/preview", wrap(async (req, res) => {
     return res.status(400).json({ error: "toPublicKey (endereço Ethereum) inválido." });
 
   // Verifica licença
-  const licenseRecord = loadLicense(licenseId);
+  const licenseRecord = await loadLicense(licenseId);
   if (!licenseRecord)
     return res.status(404).json({ error: `Licença ${licenseId} não encontrada.` });
 
   // Verifica destinatário cadastrado
-  const newOwner = lookupUser(toPublicKey);
+  const newOwner = await lookupUser(toPublicKey);
   if (!newOwner) {
     return res.status(404).json({
       error: "Destinatário não cadastrado no sistema. O novo dono deve se registrar antes de receber transferências.",
@@ -424,7 +424,7 @@ router.post("/transfer", wrap(async (req, res) => {
   verifyMetaMaskSignature(fromPublicKey, message, signature);
 
   // 2. Verifica destinatário cadastrado
-  const newOwnerUser = lookupUser(toPublicKey);
+  const newOwnerUser = await lookupUser(toPublicKey);
   if (!newOwnerUser) {
     return res.status(404).json({
       error: "Destinatário não cadastrado. Ele deve se registrar (POST /users/register) antes de receber transferências.",
@@ -433,7 +433,7 @@ router.post("/transfer", wrap(async (req, res) => {
 
   // 3. Executa transferência no registro
   const bookMeta = (title || author) ? { title: title || undefined, author: author || undefined } : null;
-  const updatedRecord = transferLicense(licenseId, fromPublicKey, {
+  const updatedRecord = await transferLicense(licenseId, fromPublicKey, {
     address: toPublicKey,
     name:    newOwnerUser.name,
     cpf:     newOwnerUser.cpf,
@@ -811,17 +811,17 @@ router.post("/publisher/encrypt", requireAuth, wrap(async (req, res) => {
 
   // Registra no licenseRegistry para permitir abertura via /decrypt sem blockchain
   // Se licença já existe, preserva currentOwner — não sobrescreve com dados do publisher
-  const existingUser = lookupUser(ownerAddress);
+  const existingUser = await lookupUser(ownerAddress);
   const ownerInfo = {
     address: ownerAddress,
     name:    existingUser?.name ?? "Publisher",
     cpf:     existingUser?.cpf  ?? "00000000000",
   };
-  const existingLicenseRec = loadLicense(licenseId);
+  const existingLicenseRec = await loadLicense(licenseId);
   if (existingLicenseRec) {
-    updateEncryptedWith(licenseId, ownerAddress);
+    await updateEncryptedWith(licenseId, ownerAddress);
   } else {
-    createLicense(licenseId, ownerInfo, metadata);
+    await createLicense(licenseId, ownerInfo, metadata);
   }
 
   res.json({

@@ -306,30 +306,30 @@ describe("Regressão: title/author preservados após transferência", () => {
     if (fs.existsSync(p)) fs.unlinkSync(p);
   });
 
-  test("registro criado SEM title/author recebe os metadados na transferência", () => {
+  test("registro criado SEM title/author recebe os metadados na transferência", async () => {
     // Simula licença criada antes de title/author serem suportados (registro antigo)
-    createLicense(licId, { address: ADDR_PUB, name: "Publisher", cpf: "12345678901" }, null);
+    await createLicense(licId, { address: ADDR_PUB, name: "Publisher", cpf: "12345678901" }, null);
 
-    transferLicense(licId, ADDR_PUB, { address: ADDR_NEW, name: "Novo Dono", cpf: "98765432100" },
+    await transferLicense(licId, ADDR_PUB, { address: ADDR_NEW, name: "Novo Dono", cpf: "98765432100" },
       { title: "livro v50", author: "Autor Teste" });
 
-    const books = listLicensesByOwner(ADDR_NEW);
+    const books = await listLicensesByOwner(ADDR_NEW);
     const book  = books.find(b => b.licenseId === licId);
     expect(book).toBeDefined();
     expect(book.title).toBe("livro v50");
     expect(book.author).toBe("Autor Teste");
   });
 
-  test("registro criado COM title/author não tem seus dados sobrescritos na transferência", () => {
+  test("registro criado COM title/author não tem seus dados sobrescritos na transferência", async () => {
     const licId2 = licId + "-b";
-    createLicense(licId2, { address: ADDR_PUB, name: "Publisher", cpf: "12345678901" },
+    await createLicense(licId2, { address: ADDR_PUB, name: "Publisher", cpf: "12345678901" },
       { title: "Título Original", author: "Autor Original" });
 
     // Cedente tenta "corrigir" com dados diferentes — não deve sobrescrever
-    transferLicense(licId2, ADDR_PUB, { address: ADDR_NEW, name: "Novo Dono", cpf: "98765432100" },
+    await transferLicense(licId2, ADDR_PUB, { address: ADDR_NEW, name: "Novo Dono", cpf: "98765432100" },
       { title: "Outro Título", author: "Outro Autor" });
 
-    const books = listLicensesByOwner(ADDR_NEW);
+    const books = await listLicensesByOwner(ADDR_NEW);
     const book  = books.find(b => b.licenseId === licId2);
     expect(book.title).toBe("Título Original");
     expect(book.author).toBe("Autor Original");
