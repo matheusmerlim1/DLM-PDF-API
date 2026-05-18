@@ -598,16 +598,26 @@
     });
   });
 
-  // URL do servidor:
-  //   - porta 3001 (npx serve client/) → localhost:3000
-  //   - protocolo file:// → Railway production
-  //   - qualquer outra origem → mesma origem (servido pelo próprio Express)
-  const RAILWAY_URL = 'https://dlm-pdf-server-production.up.railway.app/api/v1';
-  const API_BASE = window.location.protocol === 'file:'
-    ? RAILWAY_URL
-    : window.location.port === '3001'
-      ? 'http://localhost:3000/api/v1'
-      : `${window.location.origin}/api/v1`;
+  // ── Formspree ────────────────────────────────────────────────────────────────
+  // 1. Acesse https://formspree.io e crie uma conta com matheusmerlim@gmail.com
+  // 2. Crie um novo form apontando para matheusmerlim@gmail.com
+  // 3. Substitua FORMSPREE_ID pelo ID do form gerado (ex: "xyzabcde")
+  const FORMSPREE_ID = 'COLE_SEU_ID_AQUI';
+  const FORMSPREE_URL = `https://formspree.io/f/${FORMSPREE_ID}`;
+
+  function mostrarConfirmacao(sucesso, data) {
+    document.getElementById('form').style.display = 'none';
+    document.getElementById('btn-submit').closest('.submit-area').style.display = 'none';
+    const resBox = document.getElementById('resultado');
+    resBox.style.display = 'block';
+    resBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (sucesso) {
+      document.getElementById('res-ok').style.display = 'block';
+    } else {
+      document.getElementById('res-erro').style.display = 'block';
+      document.getElementById('json-out').textContent   = JSON.stringify(data, null, 2);
+    }
+  }
 
   // Submit
   document.getElementById('form').addEventListener('submit', async e => {
@@ -627,39 +637,27 @@
     data._timestamp = new Date().toLocaleString('pt-BR');
     data._versao    = 'avaliacao_autores_v1';
 
-    // Desabilita botão enquanto envia
     const btn = document.getElementById('btn-submit');
-    btn.disabled     = true;
-    btn.textContent  = 'Enviando…';
+    btn.disabled    = true;
+    btn.textContent = 'Enviando…';
+
+    if (FORMSPREE_ID === 'COLE_SEU_ID_AQUI') {
+      // Sem ID configurado — mostra erro orientando o pesquisador
+      mostrarConfirmacao(false, data);
+      document.getElementById('res-erro').querySelector('p').textContent =
+        'Formulário não configurado. O pesquisador precisa adicionar o ID do Formspree no código.';
+      return;
+    }
 
     try {
-      const resp = await fetch(`${API_BASE}/avaliacoes`, {
+      const resp = await fetch(FORMSPREE_URL, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
         body:    JSON.stringify(data),
       });
-
-      // Esconde formulário e mostra tela de confirmação
-      document.getElementById('form').style.display     = 'none';
-      document.getElementById('btn-submit').closest('.submit-area').style.display = 'none';
-      const resBox = document.getElementById('resultado');
-      resBox.style.display = 'block';
-      resBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-      if (resp.ok) {
-        document.getElementById('res-ok').style.display = 'block';
-      } else {
-        document.getElementById('res-erro').style.display = 'block';
-        document.getElementById('json-out').textContent   = JSON.stringify(data, null, 2);
-      }
+      mostrarConfirmacao(resp.ok, data);
     } catch (_) {
-      document.getElementById('form').style.display     = 'none';
-      document.getElementById('btn-submit').closest('.submit-area').style.display = 'none';
-      const resBox = document.getElementById('resultado');
-      resBox.style.display = 'block';
-      resBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      document.getElementById('res-erro').style.display = 'block';
-      document.getElementById('json-out').textContent   = JSON.stringify(data, null, 2);
+      mostrarConfirmacao(false, data);
     }
   });
 
