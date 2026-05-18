@@ -19,7 +19,8 @@ const STORAGE_ROOT = process.env.STORAGE_PATH
 const LICENSES_DIR = path.join(STORAGE_ROOT, "licenses");
 const USERS_FILE   = path.join(STORAGE_ROOT, "users.json");
 
-let pool = null;
+let pool    = null;
+let dbError = null; // último erro de conexão, exposto no /health para diagnóstico
 
 // ── Inicialização ─────────────────────────────────────────────────────────────
 
@@ -68,19 +69,25 @@ export async function initDB() {
     { label: "SSL permissivo", ssl: { rejectUnauthorized: false } },
   ];
 
+  const errors = [];
   for (const { label, ssl } of attempts) {
     try {
       pool = await _tryConnect(pg, url, ssl);
+      dbError = null;
       console.log(`✅ PostgreSQL conectado (${label}).`);
       return;
     } catch (err) {
-      console.warn(`⚠️  PostgreSQL falhou [${label}]: ${err.message}`);
+      errors.push(`[${label}] ${err.message}`);
+      console.warn(`⚠️  PostgreSQL falhou ${label}: ${err.message}`);
       if (pool) { pool.end().catch(() => {}); pool = null; }
     }
   }
 
-  console.error("❌ PostgreSQL indisponível após todas as tentativas. Usando filesystem.");
+  dbError = errors.join(" | ");
+  console.error(`❌ PostgreSQL indisponível: ${dbError}. Usando filesystem.`);
 }
+
+export function dbLastError() { return dbError; }
 
 export function dbMode() {
   return pool ? "postgres" : "filesystem";

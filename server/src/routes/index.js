@@ -17,7 +17,7 @@
 import { Router }            from "express";
 import { ethers }            from "ethers";
 import { blockchainService } from "../services/blockchainService.js";
-import { dbMode }            from "../services/db.js";
+import { dbMode, dbLastError } from "../services/db.js";
 import {
   generateSessionKey,
   sha256Hex,
@@ -504,6 +504,7 @@ router.get("/health", wrap(async (req, res) => {
   res.status(status.connected || status.demo ? 200 : 503).json({
     status:          status.mode === "connected" ? "ok" : status.mode,
     storage:         dbMode(),
+    db_error:        dbLastError() || undefined,
     blockchain:      status,
     latencyMs,
     timestamp:       new Date().toISOString(),
