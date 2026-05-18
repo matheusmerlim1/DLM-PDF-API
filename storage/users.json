@@ -10,5 +10,17 @@
     "name": "Bob Destino",
     "cpf": "999.888.777-66",
     "updatedAt": "2026-05-15T21:58:48.436Z"
+  },
+  "0x9635e112f82c7f785ef12115e0d0895c7c9b705a": {
+    "address": "0x9635e112f82c7f785ef12115e0d0895c7c9b705a",
+    "name": "Matheus Publisher",
+    "cpf": "12345678901",
+    "updatedAt": "2026-05-18T11:26:41.766Z"
+  },
+  "0xe7a2ddefb8b1fea788bd0c367cedf87a3aa7c18b": {
+    "address": "0xe7a2ddefb8b1fea788bd0c367cedf87a3aa7c18b",
+    "name": "Nilson Leitor",
+    "cpf": "98765432100",
+    "updatedAt": "2026-05-18T11:26:41.770Z"
   }
 }

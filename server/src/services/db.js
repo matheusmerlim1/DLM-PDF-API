@@ -34,7 +34,8 @@ export async function initDB() {
 
   const { default: pg } = await import("pg");
   const isLocal = process.env.DATABASE_URL.includes("localhost") ||
-                  process.env.DATABASE_URL.includes("127.0.0.1");
+                  process.env.DATABASE_URL.includes("127.0.0.1") ||
+                  process.env.DATABASE_URL.includes(".railway.internal");
 
   pool = new pg.Pool({
     connectionString: process.env.DATABASE_URL,
