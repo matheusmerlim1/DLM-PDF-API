@@ -1,5 +1,16 @@
 const FORMSPREE_URL = 'https://formspree.io/f/xzdwzzdo';
 
+// Calcula caminho do index.html a partir de qualquer contexto
+function indexUrl() {
+  const loc = window.location;
+  if (loc.protocol === 'file:') {
+    // file:// — sobe um nível a partir de client/
+    return loc.href.replace(/\/client\/[^/]+$/, '/index.html');
+  }
+  // HTTP/HTTPS — ../index.html relativo ao diretório atual
+  return '../index.html';
+}
+
 // Destaca opt-item ao selecionar
 document.querySelectorAll('.opt-item input').forEach(inp => {
   inp.addEventListener('change', () => {
@@ -12,27 +23,20 @@ document.querySelectorAll('.opt-item input').forEach(inp => {
   });
 });
 
-function mostrarConfirmacao(sucesso, data) {
-  if (sucesso) {
-    window.location.href = '../index.html';
-    return;
-  }
-  document.getElementById('form').style.display = 'none';
-  document.getElementById('btn-submit').closest('.submit-area').style.display = 'none';
-  const resBox = document.getElementById('resultado');
-  resBox.style.display = 'block';
-  resBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  document.getElementById('res-erro').style.display = 'block';
-  document.getElementById('json-out').textContent = JSON.stringify(data, null, 2);
-}
-
 document.getElementById('form').addEventListener('submit', async e => {
   e.preventDefault();
 
-  const data = {};
-  const fd = new FormData(e.target);
+  const btn = document.getElementById('btn-submit');
+  btn.disabled    = true;
+  btn.textContent = 'Enviando…';
+
+  // Coleta dados do formulário
+  const data    = {};
+  const fd      = new FormData(e.target);
+  const params  = new URLSearchParams();
 
   for (const [k, v] of fd.entries()) {
+    params.append(k, v);
     if (data[k]) {
       data[k] = Array.isArray(data[k]) ? [...data[k], v] : [data[k], v];
     } else {
@@ -41,30 +45,44 @@ document.getElementById('form').addEventListener('submit', async e => {
   }
 
   data._timestamp = new Date().toLocaleString('pt-BR');
-  data._versao = 'avaliacao_autores_v1';
-
-  const btn = document.getElementById('btn-submit');
-  btn.disabled = true;
-  btn.textContent = 'Enviando…';
-
-  // Formspree free plan aceita apenas form-encoded (não JSON)
-  const params = new URLSearchParams();
-  const fd2 = new FormData(e.target);
-  for (const [k, v] of fd2.entries()) params.append(k, v);
+  data._versao    = 'avaliacao_autores_v1';
   params.append('_timestamp', data._timestamp);
-  params.append('_versao', data._versao);
+  params.append('_versao',    data._versao);
 
   try {
     const resp = await fetch(FORMSPREE_URL, {
-      method: 'POST',
+      method:  'POST',
       headers: { 'Accept': 'application/json' },
-      body: params,
+      body:    params,
     });
-    mostrarConfirmacao(resp.ok, data);
-  } catch (_) {
-    mostrarConfirmacao(false, data);
+
+    // Lê o corpo independente do status
+    const json = await resp.json().catch(() => ({}));
+    const ok   = resp.ok && json.ok !== false;
+
+    if (ok) {
+      window.location.replace(indexUrl());
+    } else {
+      mostrarErro(json.error || `Erro ${resp.status}`, data);
+    }
+
+  } catch (err) {
+    mostrarErro(err.message || 'Falha de rede', data);
   }
 });
+
+function mostrarErro(mensagem, data) {
+  document.getElementById('form').style.display = 'none';
+  document.getElementById('btn-submit').closest('.submit-area').style.display = 'none';
+
+  const resBox = document.getElementById('resultado');
+  resBox.style.display = 'block';
+  resBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  document.getElementById('res-erro').style.display = 'block';
+  document.getElementById('res-erro-msg').textContent = mensagem;
+  document.getElementById('json-out').textContent = JSON.stringify(data, null, 2);
+}
 
 function copiarJSON() {
   const txt = document.getElementById('json-out').textContent;
