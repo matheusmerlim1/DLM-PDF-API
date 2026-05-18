@@ -21,3 +21,16 @@ Thumbs.db
 
 # Claude Code local overrides — personal, not for the team
 .claude/settings.local.json
+
+# Artigo LaTeX — não entra no repositório
+artigo_dlm_v5*.tex
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# Script gerador de imagens
+generate_images.py
