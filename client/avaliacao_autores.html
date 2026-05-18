@@ -4,286 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DLM-PDF — Avaliação com Autores</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg:      #0f172a;
-      --surface: #1e293b;
-      --border:  #334155;
-      --text:    #e2e8f0;
-      --muted:   #94a3b8;
-      --cyan:    #22d3ee;
-      --blue:    #3b82f6;
-      --green:   #22c55e;
-      --yellow:  #eab308;
-      --red:     #ef4444;
-      --purple:  #a78bfa;
-    }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      min-height: 100vh;
-      padding: 2rem 1rem;
-    }
-
-    .wrapper {
-      max-width: 760px;
-      margin: 0 auto;
-    }
-
-    /* ── cabeçalho ── */
-    header {
-      text-align: center;
-      margin-bottom: 2.5rem;
-    }
-    header .logo { font-size: 1.1rem; color: var(--cyan); font-weight: 700; letter-spacing: .06em; }
-    header h1   { font-size: 1.55rem; margin: .4rem 0 .6rem; line-height: 1.3; }
-    header p    { color: var(--muted); font-size: .88rem; line-height: 1.65; max-width: 580px; margin: 0 auto; }
-
-    .badge {
-      display: inline-block;
-      background: #1e3a8a44;
-      border: 1px solid #1e3a8a88;
-      color: var(--blue);
-      font-size: .72rem;
-      padding: 2px 10px;
-      border-radius: 20px;
-      margin-bottom: .8rem;
-    }
-
-    /* ── seções ── */
-    .section {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 1.5rem 1.75rem;
-      margin-bottom: 1.5rem;
-    }
-    .section-title {
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--cyan);
-      margin-bottom: 1.25rem;
-      padding-bottom: .6rem;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: .6rem;
-    }
-    .section-title .num {
-      background: var(--cyan);
-      color: #0f172a;
-      font-size: .72rem;
-      font-weight: 800;
-      width: 22px; height: 22px;
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-    }
-
-    /* ── questões ── */
-    .q { margin-bottom: 1.4rem; }
-    .q:last-child { margin-bottom: 0; }
-
-    .q-label {
-      font-size: .88rem;
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: .55rem;
-      line-height: 1.55;
-      display: block;
-    }
-    .q-label .opt { color: var(--muted); font-weight: 400; font-size: .78rem; }
-    .q-note {
-      font-size: .77rem;
-      color: var(--muted);
-      margin-bottom: .55rem;
-      font-style: italic;
-    }
-
-    /* inputs de texto */
-    input[type="text"], input[type="email"], textarea, select {
-      width: 100%;
-      background: #020617;
-      border: 1px solid var(--border);
-      border-radius: 7px;
-      color: var(--text);
-      font-family: inherit;
-      font-size: .85rem;
-      padding: .55rem .85rem;
-      transition: border-color .15s;
-    }
-    input[type="text"]:focus, input[type="email"]:focus,
-    textarea:focus, select:focus {
-      outline: none;
-      border-color: var(--blue);
-    }
-    textarea { resize: vertical; min-height: 80px; line-height: 1.55; }
-    select { cursor: pointer; }
-    select option { background: #1e293b; }
-
-    /* radio / checkbox */
-    .opts { display: flex; flex-direction: column; gap: .45rem; }
-    .opts.row { flex-direction: row; flex-wrap: wrap; gap: .5rem; }
-
-    .opt-item {
-      display: flex;
-      align-items: flex-start;
-      gap: .6rem;
-      cursor: pointer;
-      padding: .45rem .7rem;
-      border-radius: 7px;
-      border: 1px solid transparent;
-      transition: background .12s, border-color .12s;
-      font-size: .85rem;
-      color: var(--muted);
-    }
-    .opt-item:hover { background: #1e40af15; color: var(--text); }
-    .opt-item input[type="radio"],
-    .opt-item input[type="checkbox"] {
-      width: 16px; height: 16px;
-      margin-top: 1px;
-      accent-color: var(--cyan);
-      flex-shrink: 0;
-    }
-    .opt-item.checked { background: #164e6322; border-color: #22d3ee55; color: var(--text); }
-
-    /* escala Likert */
-    .likert {
-      display: flex;
-      gap: .4rem;
-      flex-wrap: wrap;
-      align-items: flex-end;
-    }
-    .likert-pole {
-      font-size: .72rem;
-      color: var(--muted);
-      white-space: nowrap;
-    }
-    .likert-options {
-      display: flex;
-      gap: .4rem;
-      flex: 1;
-      justify-content: center;
-    }
-    .lk {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: .3rem;
-      cursor: pointer;
-    }
-    .lk span {
-      font-size: .72rem;
-      color: var(--muted);
-    }
-    .lk input[type="radio"] {
-      width: 18px; height: 18px;
-      accent-color: var(--cyan);
-      cursor: pointer;
-    }
-    .lk:has(input:checked) span { color: var(--cyan); font-weight: 700; }
-
-    /* divisor */
-    .divider {
-      border: none;
-      border-top: 1px solid var(--border);
-      margin: 1.2rem 0;
-    }
-
-    /* bloco de contexto */
-    .context-box {
-      background: #0f2235;
-      border: 1px solid #1e4a7088;
-      border-radius: 8px;
-      padding: 1rem 1.1rem;
-      font-size: .83rem;
-      color: var(--muted);
-      line-height: 1.65;
-      margin-bottom: 1.4rem;
-    }
-    .context-box strong { color: var(--cyan); }
-
-    /* botão enviar */
-    .submit-area { text-align: center; margin-top: 2rem; }
-    .btn-submit {
-      background: var(--cyan);
-      color: #0f172a;
-      border: none;
-      border-radius: 8px;
-      padding: .8rem 2.5rem;
-      font-size: .95rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: opacity .15s;
-    }
-    .btn-submit:hover { opacity: .85; }
-
-    /* tela de confirmação */
-    #resultado {
-      display: none;
-      text-align: center;
-      padding: 3rem 2rem;
-    }
-    .res-icon {
-      font-size: 3.5rem;
-      line-height: 1;
-      margin-bottom: 1rem;
-      color: var(--green);
-    }
-    .res-icon.err { color: var(--red); }
-    #resultado h2 { font-size: 1.4rem; margin-bottom: .75rem; }
-    #resultado p  { color: var(--muted); max-width: 480px; margin: 0 auto .4rem; }
-    #resultado details { text-align: left; max-width: 600px; margin: 1rem auto 0; }
-    #resultado pre {
-      background: #020617;
-      border-radius: 6px;
-      padding: .75rem;
-      font-size: .78rem;
-      color: var(--text);
-      overflow-x: auto;
-      white-space: pre-wrap;
-      max-height: 260px;
-      overflow-y: auto;
-    }
-    .copy-resp {
-      background: var(--border);
-      border: none;
-      color: var(--muted);
-      padding: 4px 10px;
-      border-radius: 4px;
-      font-size: .72rem;
-      cursor: pointer;
-      margin-top: .5rem;
-    }
-    .copy-resp:hover { background: var(--blue); color: #fff; }
-
-    /* rodapé */
-    footer {
-      text-align: center;
-      color: var(--muted);
-      font-size: .75rem;
-      margin-top: 2.5rem;
-      padding-top: 1.5rem;
-      border-top: 1px solid var(--border);
-    }
-
-    @media (max-width: 540px) {
-      .section { padding: 1.1rem 1rem; }
-      .likert-options { gap: .25rem; }
-    }
-
-    @media print {
-      body { background: #fff; color: #000; }
-      .section { background: #f8f8f8; border-color: #ccc; }
-      .submit-area { display: none !important; }
-      .section-title { color: #0077aa; border-color: #ccc; }
-      .q-label { color: #111; }
-    }
-  </style>
+  <link rel="stylesheet" href="avaliacao_autores.css" />
 </head>
 <body>
 <div class="wrapper">
@@ -409,7 +130,7 @@
         <strong>Contexto do sistema avaliado:</strong> o DLM-PDF é uma plataforma que permite comprar,
         revender e emprestar e-books com posse real registrada em blockchain. Quando um leitor revende
         um livro digital, o autor recebe automaticamente um percentual (royalty) configurado na venda
-        original — sem depender de nenhuma plataforma intermediária. O arquivo \texttt{.dlm} só pode
+        original — sem depender de nenhuma plataforma intermediária. O arquivo .dlm só pode
         ser aberto por quem possui a licença no momento; ao revender, o vendedor perde o acesso.
       </div>
 
@@ -553,10 +274,9 @@
 
   </form>
 
-  <!-- tela de confirmação — substitui o formulário -->
+  <!-- tela de confirmação -->
   <div id="resultado">
 
-    <!-- sucesso -->
     <div id="res-ok" style="display:none">
       <div class="res-icon">✓</div>
       <h2>Obrigado pela participação!</h2>
@@ -564,11 +284,10 @@
       <p style="color:var(--muted);font-size:.85rem;margin-top:.5rem">Participação voluntária e anônima. CEFET/RJ · UERJ · Nova Friburgo, RJ</p>
     </div>
 
-    <!-- erro de rede — fallback discreto -->
     <div id="res-erro" style="display:none">
       <div class="res-icon err">!</div>
       <h2>Não foi possível enviar</h2>
-      <p>O servidor está temporariamente fora do ar. Por favor, copie o texto abaixo e envie por e-mail ao pesquisador.</p>
+      <p>Ocorreu um erro ao enviar suas respostas. Copie o texto abaixo e envie por e-mail ao pesquisador.</p>
       <details style="margin-top:1rem">
         <summary style="cursor:pointer;color:var(--muted);font-size:.82rem">Ver dados para copiar</summary>
         <pre id="json-out" style="margin-top:.6rem"></pre>
@@ -582,95 +301,8 @@
     DLM-PDF — Pesquisa acadêmica &nbsp;|&nbsp; CEFET/RJ &nbsp;·&nbsp; UERJ &nbsp;·&nbsp; Nova Friburgo, RJ
     <br>Participação voluntária e anônima. Dados usados exclusivamente para fins acadêmicos.
   </footer>
+
 </div>
-
-<script>
-  // Destaca opt-item selecionado
-  document.querySelectorAll('.opt-item input').forEach(inp => {
-    inp.addEventListener('change', () => {
-      const group = inp.name;
-      if (inp.type === 'radio') {
-        document.querySelectorAll(`input[name="${group}"]`).forEach(r => {
-          r.closest('.opt-item').classList.remove('checked');
-        });
-      }
-      inp.closest('.opt-item').classList.toggle('checked', inp.checked);
-    });
-  });
-
-  // ── Formspree ────────────────────────────────────────────────────────────────
-  // 1. Acesse https://formspree.io e crie uma conta com matheusmerlim@gmail.com
-  // 2. Crie um novo form apontando para matheusmerlim@gmail.com
-  // 3. Substitua FORMSPREE_ID pelo ID do form gerado (ex: "xyzabcde")
-  const FORMSPREE_ID = 'COLE_SEU_ID_AQUI';
-  const FORMSPREE_URL = `https://formspree.io/f/${FORMSPREE_ID}`;
-
-  function mostrarConfirmacao(sucesso, data) {
-    document.getElementById('form').style.display = 'none';
-    document.getElementById('btn-submit').closest('.submit-area').style.display = 'none';
-    const resBox = document.getElementById('resultado');
-    resBox.style.display = 'block';
-    resBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    if (sucesso) {
-      document.getElementById('res-ok').style.display = 'block';
-    } else {
-      document.getElementById('res-erro').style.display = 'block';
-      document.getElementById('json-out').textContent   = JSON.stringify(data, null, 2);
-    }
-  }
-
-  // Submit
-  document.getElementById('form').addEventListener('submit', async e => {
-    e.preventDefault();
-
-    const data = {};
-    const fd   = new FormData(e.target);
-
-    for (const [k, v] of fd.entries()) {
-      if (data[k]) {
-        data[k] = Array.isArray(data[k]) ? [...data[k], v] : [data[k], v];
-      } else {
-        data[k] = v;
-      }
-    }
-
-    data._timestamp = new Date().toLocaleString('pt-BR');
-    data._versao    = 'avaliacao_autores_v1';
-
-    const btn = document.getElementById('btn-submit');
-    btn.disabled    = true;
-    btn.textContent = 'Enviando…';
-
-    if (FORMSPREE_ID === 'COLE_SEU_ID_AQUI') {
-      // Sem ID configurado — mostra erro orientando o pesquisador
-      mostrarConfirmacao(false, data);
-      document.getElementById('res-erro').querySelector('p').textContent =
-        'Formulário não configurado. O pesquisador precisa adicionar o ID do Formspree no código.';
-      return;
-    }
-
-    try {
-      const resp = await fetch(FORMSPREE_URL, {
-        method:  'POST',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-        body:    JSON.stringify(data),
-      });
-      mostrarConfirmacao(resp.ok, data);
-    } catch (_) {
-      mostrarConfirmacao(false, data);
-    }
-  });
-
-  function copiarJSON() {
-    const txt = document.getElementById('json-out').textContent;
-    navigator.clipboard.writeText(txt).then(() => {
-      const btn = event.target;
-      btn.textContent = '✓ Copiado';
-      setTimeout(() => btn.textContent = 'Copiar JSON', 1800);
-    });
-  }
-
-  function imprimirPag() { window.print(); }
-</script>
+<script src="avaliacao_autores.js"></script>
 </body>
 </html>
