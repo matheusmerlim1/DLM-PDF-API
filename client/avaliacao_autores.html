@@ -222,19 +222,22 @@
     }
     .btn-submit:hover { opacity: .85; }
 
-    /* resultado */
+    /* tela de confirmação */
     #resultado {
       display: none;
-      background: #064e3b22;
-      border: 1px solid #064e3b88;
-      border-radius: 10px;
-      padding: 1.2rem 1.5rem;
-      margin-top: 1.5rem;
-      color: var(--green);
-      font-size: .88rem;
-      line-height: 1.65;
+      text-align: center;
+      padding: 3rem 2rem;
     }
-    #resultado h3 { color: var(--green); margin-bottom: .5rem; }
+    .res-icon {
+      font-size: 3.5rem;
+      line-height: 1;
+      margin-bottom: 1rem;
+      color: var(--green);
+    }
+    .res-icon.err { color: var(--red); }
+    #resultado h2 { font-size: 1.4rem; margin-bottom: .75rem; }
+    #resultado p  { color: var(--muted); max-width: 480px; margin: 0 auto .4rem; }
+    #resultado details { text-align: left; max-width: 600px; margin: 1rem auto 0; }
     #resultado pre {
       background: #020617;
       border-radius: 6px;
@@ -243,8 +246,7 @@
       color: var(--text);
       overflow-x: auto;
       white-space: pre-wrap;
-      margin-top: .75rem;
-      max-height: 320px;
+      max-height: 260px;
       overflow-y: auto;
     }
     .copy-resp {
@@ -255,7 +257,7 @@
       border-radius: 4px;
       font-size: .72rem;
       cursor: pointer;
-      margin-left: .5rem;
+      margin-top: .5rem;
     }
     .copy-resp:hover { background: var(--blue); color: #fff; }
 
@@ -274,23 +276,10 @@
       .likert-options { gap: .25rem; }
     }
 
-    /* status de envio ao servidor */
-    .send-status {
-      font-size: .85rem;
-      padding: .4rem .8rem;
-      border-radius: 6px;
-      margin-bottom: .8rem;
-      display: none;
-    }
-    .send-status:not(:empty) { display: block; }
-    .send-status.sending { background: #1e3a5f; color: #93c5fd; }
-    .send-status.ok      { background: #064e3b44; color: #6ee7b7; }
-    .send-status.error   { background: #7f1d1d44; color: #fca5a5; }
-
     @media print {
       body { background: #fff; color: #000; }
       .section { background: #f8f8f8; border-color: #ccc; }
-      .submit-area, #resultado { display: none !important; }
+      .submit-area { display: none !important; }
       .section-title { color: #0077aa; border-color: #ccc; }
       .q-label { color: #111; }
     }
@@ -559,19 +548,34 @@
 
     <!-- ═══════════════════ ENVIAR ═══════════════════ -->
     <div class="submit-area">
-      <button type="submit" class="btn-submit">Enviar respostas →</button>
+      <button type="submit" id="btn-submit" class="btn-submit">Enviar respostas →</button>
     </div>
 
   </form>
 
-  <!-- resultado -->
+  <!-- tela de confirmação — substitui o formulário -->
   <div id="resultado">
-    <h3>✓ Respostas registradas</h3>
-    <p>Obrigado pela participação. Abaixo estão suas respostas em formato JSON — copie e envie ao pesquisador se necessário.</p>
-    <div id="send-status" class="send-status"></div>
-    <pre id="json-out"></pre>
-    <button class="copy-resp" onclick="copiarJSON()">Copiar JSON</button>
-    <button class="copy-resp" onclick="imprimirPag()">Imprimir</button>
+
+    <!-- sucesso -->
+    <div id="res-ok" style="display:none">
+      <div class="res-icon">✓</div>
+      <h2>Obrigado pela participação!</h2>
+      <p>Suas respostas foram registradas com sucesso e serão analisadas como parte da pesquisa sobre o sistema DLM-PDF.</p>
+      <p style="color:var(--muted);font-size:.85rem;margin-top:.5rem">Participação voluntária e anônima. CEFET/RJ · UERJ · Nova Friburgo, RJ</p>
+    </div>
+
+    <!-- erro de rede — fallback discreto -->
+    <div id="res-erro" style="display:none">
+      <div class="res-icon err">!</div>
+      <h2>Não foi possível enviar</h2>
+      <p>O servidor está temporariamente fora do ar. Por favor, copie o texto abaixo e envie por e-mail ao pesquisador.</p>
+      <details style="margin-top:1rem">
+        <summary style="cursor:pointer;color:var(--muted);font-size:.82rem">Ver dados para copiar</summary>
+        <pre id="json-out" style="margin-top:.6rem"></pre>
+        <button class="copy-resp" onclick="copiarJSON()">Copiar</button>
+      </details>
+    </div>
+
   </div>
 
   <footer>
@@ -594,10 +598,16 @@
     });
   });
 
-  // URL do servidor — usa mesma origem se servido pelo DLM API, senão localhost
-  const API_BASE = window.location.port === '3001'
-    ? 'http://localhost:3000/api/v1'
-    : `${window.location.origin}/api/v1`;
+  // URL do servidor:
+  //   - porta 3001 (npx serve client/) → localhost:3000
+  //   - protocolo file:// → Railway production
+  //   - qualquer outra origem → mesma origem (servido pelo próprio Express)
+  const RAILWAY_URL = 'https://dlm-pdf-server-production.up.railway.app/api/v1';
+  const API_BASE = window.location.protocol === 'file:'
+    ? RAILWAY_URL
+    : window.location.port === '3001'
+      ? 'http://localhost:3000/api/v1'
+      : `${window.location.origin}/api/v1`;
 
   // Submit
   document.getElementById('form').addEventListener('submit', async e => {
@@ -617,35 +627,39 @@
     data._timestamp = new Date().toLocaleString('pt-BR');
     data._versao    = 'avaliacao_autores_v1';
 
-    // Exibe JSON imediatamente (feedback local)
-    const out = document.getElementById('json-out');
-    out.textContent = JSON.stringify(data, null, 2);
-    const resBox = document.getElementById('resultado');
-    resBox.style.display = 'block';
-    resBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Desabilita botão enquanto envia
+    const btn = document.getElementById('btn-submit');
+    btn.disabled     = true;
+    btn.textContent  = 'Enviando…';
 
-    // Envia ao servidor
-    const statusEl = document.getElementById('send-status');
-    statusEl.textContent = 'Enviando…';
-    statusEl.className   = 'send-status sending';
     try {
       const resp = await fetch(`${API_BASE}/avaliacoes`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(data),
       });
+
+      // Esconde formulário e mostra tela de confirmação
+      document.getElementById('form').style.display     = 'none';
+      document.getElementById('btn-submit').closest('.submit-area').style.display = 'none';
+      const resBox = document.getElementById('resultado');
+      resBox.style.display = 'block';
+      resBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
       if (resp.ok) {
-        const json = await resp.json();
-        statusEl.textContent = `Salvo no servidor (id: ${json.id.slice(0,8)}…)`;
-        statusEl.className   = 'send-status ok';
+        document.getElementById('res-ok').style.display = 'block';
       } else {
-        const err = await resp.json().catch(() => ({}));
-        statusEl.textContent = `Erro ao salvar: ${err.error || resp.status}. Copie o JSON manualmente.`;
-        statusEl.className   = 'send-status error';
+        document.getElementById('res-erro').style.display = 'block';
+        document.getElementById('json-out').textContent   = JSON.stringify(data, null, 2);
       }
-    } catch (err) {
-      statusEl.textContent = 'Servidor fora do ar — copie o JSON e envie depois.';
-      statusEl.className   = 'send-status error';
+    } catch (_) {
+      document.getElementById('form').style.display     = 'none';
+      document.getElementById('btn-submit').closest('.submit-area').style.display = 'none';
+      const resBox = document.getElementById('resultado');
+      resBox.style.display = 'block';
+      resBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById('res-erro').style.display = 'block';
+      document.getElementById('json-out').textContent   = JSON.stringify(data, null, 2);
     }
   });
 

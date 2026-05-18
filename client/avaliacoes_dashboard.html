@@ -235,9 +235,12 @@
 </main>
 
 <script>
-  const API_BASE = window.location.port === '3001'
-    ? 'http://localhost:3000/api/v1'
-    : `${window.location.origin}/api/v1`;
+  const RAILWAY_URL = 'https://dlm-pdf-server-production.up.railway.app/api/v1';
+  const API_BASE = window.location.protocol === 'file:'
+    ? RAILWAY_URL
+    : window.location.port === '3001'
+      ? 'http://localhost:3000/api/v1'
+      : `${window.location.origin}/api/v1`;
 
   let _dados = [];
   let _charts = {};
