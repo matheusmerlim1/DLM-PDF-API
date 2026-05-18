@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard de Avaliações — DLM-PDF</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:     #0f172a;
+    --card:   #1e293b;
+    --border: #334155;
+    --cyan:   #22d3ee;
+    --green:  #4ade80;
+    --red:    #f87171;
+    --muted:  #94a3b8;
+    --text:   #e2e8f0;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif;
+         font-size: .95rem; line-height: 1.6; }
+
+  header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  header h1 { font-size: 1.25rem; color: var(--cyan); flex: 1; }
+  header .badge { background: var(--border); color: var(--muted); padding: .2rem .6rem;
+                  border-radius: 99px; font-size: .75rem; }
+
+  .auth-bar {
+    background: #1a2744;
+    border-bottom: 1px solid var(--border);
+    padding: .6rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    flex-wrap: wrap;
+  }
+  .auth-bar label { font-size: .82rem; color: var(--muted); }
+  .auth-bar input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: .3rem .6rem;
+    border-radius: 6px;
+    font-size: .82rem;
+    width: 280px;
+  }
+  .auth-bar button {
+    background: var(--cyan);
+    color: #0f172a;
+    border: none;
+    padding: .3rem .9rem;
+    border-radius: 6px;
+    font-size: .82rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #auth-msg { font-size: .8rem; }
+  #auth-msg.ok    { color: var(--green); }
+  #auth-msg.error { color: var(--red); }
+
+  main { max-width: 1300px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem; }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+    text-align: center;
+  }
+  .stat-card .val { font-size: 2rem; font-weight: 700; color: var(--cyan); }
+  .stat-card .lbl { font-size: .75rem; color: var(--muted); margin-top: .2rem; }
+
+  .charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 1.2rem;
+    margin-bottom: 1.5rem;
+  }
+  .chart-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.2rem;
+  }
+  .chart-card h3 { font-size: .88rem; color: var(--muted); margin-bottom: .8rem; }
+
+  .section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--cyan);
+    margin: 1.5rem 0 .8rem;
+    padding-bottom: .4rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Tabela de respostas brutas */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+  th { background: #1a2744; color: var(--muted); font-weight: 600;
+       padding: .5rem .7rem; text-align: left; white-space: nowrap; position: sticky; top: 0; }
+  td { padding: .45rem .7rem; border-bottom: 1px solid var(--border); vertical-align: top;
+       max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  tr:hover td { background: #1e2d44; }
+  .delete-btn {
+    background: transparent;
+    border: 1px solid var(--red);
+    color: var(--red);
+    padding: .2rem .55rem;
+    border-radius: 5px;
+    font-size: .75rem;
+    cursor: pointer;
+  }
+  .delete-btn:hover { background: #7f1d1d44; }
+
+  /* Detalhes de resposta aberta */
+  .open-answers {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+    margin-bottom: 1rem;
+  }
+  .open-answers h4 { font-size: .82rem; color: var(--cyan); margin-bottom: .6rem; }
+  .answer-item { margin-bottom: .8rem; }
+  .answer-item .q { font-size: .78rem; color: var(--muted); margin-bottom: .15rem; }
+  .answer-item .a { font-size: .85rem; }
+
+  .export-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: .4rem 1rem;
+    border-radius: 6px;
+    font-size: .82rem;
+    cursor: pointer;
+    margin-right: .5rem;
+  }
+  .export-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+  #loading { text-align: center; padding: 3rem; color: var(--muted); }
+  #no-data  { text-align: center; padding: 3rem; color: var(--muted); display: none; }
+  #content  { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Dashboard de Avaliações</h1>
+  <span class="badge">DLM-PDF — Pesquisa de autores</span>
+</header>
+
+<div class="auth-bar">
+  <label for="tok">JWT do pesquisador:</label>
+  <input type="password" id="tok" placeholder="eyJ…" autocomplete="off">
+  <button onclick="carregar()">Carregar dados</button>
+  <span id="auth-msg"></span>
+</div>
+
+<main>
+  <div id="loading">Informe o token JWT e clique em "Carregar dados".</div>
+  <div id="no-data">Nenhuma avaliação registrada ainda.</div>
+
+  <div id="content">
+    <!-- Estatísticas rápidas -->
+    <div class="stats-row">
+      <div class="stat-card"><div class="val" id="st-total">0</div><div class="lbl">Respostas</div></div>
+      <div class="stat-card"><div class="val" id="st-royalty">—</div><div class="lbl">Royalty (média Likert)</div></div>
+      <div class="stat-card"><div class="val" id="st-blockchain">—</div><div class="lbl">Confiança blockchain (média)</div></div>
+      <div class="stat-card"><div class="val" id="st-relevancia">—</div><div class="lbl">Relevância geral (média)</div></div>
+      <div class="stat-card"><div class="val" id="st-usaria">—</div><div class="lbl">Usariam o sistema</div></div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>Utilidade do sistema de royalties (Likert 1–5)</h3>
+        <canvas id="ch-royalty"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Confiança na blockchain (Likert 1–5)</h3>
+        <canvas id="ch-blockchain"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Relevância geral do sistema (Likert 1–5)</h3>
+        <canvas id="ch-relevancia"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Intenção de uso</h3>
+        <canvas id="ch-usaria"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>MetaMask é barreira de adoção?</h3>
+        <canvas id="ch-metamask"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Canais de distribuição atuais</h3>
+        <canvas id="ch-canais"></canvas>
+      </div>
+    </div>
+
+    <!-- Respostas abertas -->
+    <div class="section-title">Respostas abertas</div>
+    <div id="open-list"></div>
+
+    <!-- Tabela completa -->
+    <div class="section-title" style="display:flex; align-items:center; justify-content:space-between;">
+      <span>Todas as respostas</span>
+      <div>
+        <button class="export-btn" onclick="exportarCSV()">Exportar CSV</button>
+        <button class="export-btn" onclick="exportarJSON()">Exportar JSON</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead id="thead"></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+  const API_BASE = window.location.port === '3001'
+    ? 'http://localhost:3000/api/v1'
+    : `${window.location.origin}/api/v1`;
+
+  let _dados = [];
+  let _charts = {};
+
+  // ── Helpers de Likert ──────────────────────────────────────────────────────
+  const LIKERT_LABELS = ['', '1 – Discordo', '2', '3 – Neutro', '4', '5 – Concordo'];
+  const BAR_COLORS    = ['#334155','#1e3a5f','#22d3ee88','#22d3ee','#0ea5e9'];
+
+  function contarLikert(dados, campo) {
+    const counts = [0, 0, 0, 0, 0]; // índice 0 = valor "1"
+    dados.forEach(d => {
+      const v = parseInt(d[campo]);
+      if (v >= 1 && v <= 5) counts[v - 1]++;
+    });
+    return counts;
+  }
+
+  function mediaLikert(dados, campo) {
+    const vals = dados.map(d => parseInt(d[campo])).filter(v => v >= 1 && v <= 5);
+    if (!vals.length) return null;
+    return (vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(1);
+  }
+
+  function contarCategoria(dados, campo) {
+    const map = {};
+    dados.forEach(d => {
+      const v = d[campo];
+      if (!v) return;
+      const vals = Array.isArray(v) ? v : [v];
+      vals.forEach(x => { map[x] = (map[x] || 0) + 1; });
+    });
+    return map;
+  }
+
+  // ── Renderiza gráfico de barras Likert ─────────────────────────────────────
+  function barLikert(canvasId, dados, campo) {
+    const ctx    = document.getElementById(canvasId).getContext('2d');
+    const counts = contarLikert(dados, campo);
+    if (_charts[canvasId]) _charts[canvasId].destroy();
+    _charts[canvasId] = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['1', '2', '3', '4', '5'],
+        datasets: [{ data: counts, backgroundColor: BAR_COLORS, borderRadius: 4 }],
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+          y: { ticks: { color: '#94a3b8', stepSize: 1 }, grid: { color: '#334155' }, beginAtZero: true },
+        },
+      },
+    });
+  }
+
+  // ── Renderiza gráfico de pizza/doughnut ────────────────────────────────────
+  function pieCategoria(canvasId, dados, campo) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    const map = contarCategoria(dados, campo);
+    const labels = Object.keys(map);
+    const values = Object.values(map);
+    const palette = ['#22d3ee','#0ea5e9','#38bdf8','#7dd3fc','#bae6fd','#e0f2fe'];
+    if (_charts[canvasId]) _charts[canvasId].destroy();
+    _charts[canvasId] = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{ data: values, backgroundColor: palette.slice(0, labels.length), borderWidth: 0 }],
+      },
+      options: {
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 } } },
+        },
+      },
+    });
+  }
+
+  // ── Carrega dados do servidor ──────────────────────────────────────────────
+  async function carregar() {
+    const token = document.getElementById('tok').value.trim();
+    const msg   = document.getElementById('auth-msg');
+    if (!token) { msg.textContent = 'Informe o token.'; msg.className = 'error'; return; }
+
+    msg.textContent = 'Carregando…'; msg.className = '';
+    try {
+      const resp = await fetch(`${API_BASE}/avaliacoes`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (resp.status === 401) throw new Error('Token inválido ou expirado.');
+      if (!resp.ok)            throw new Error(`Erro ${resp.status}`);
+      const json = await resp.json();
+      _dados = json.avaliacoes || [];
+      msg.textContent = `${_dados.length} resposta(s) carregada(s).`;
+      msg.className = 'ok';
+      renderizar();
+    } catch (err) {
+      msg.textContent = err.message; msg.className = 'error';
+    }
+  }
+
+  // ── Renderiza tudo ─────────────────────────────────────────────────────────
+  function renderizar() {
+    document.getElementById('loading').style.display  = 'none';
+    if (!_dados.length) {
+      document.getElementById('no-data').style.display  = 'block';
+      document.getElementById('content').style.display  = 'none';
+      return;
+    }
+    document.getElementById('no-data').style.display  = 'none';
+    document.getElementById('content').style.display  = 'block';
+
+    // Stats rápidas
+    document.getElementById('st-total').textContent      = _dados.length;
+    document.getElementById('st-royalty').textContent    = mediaLikert(_dados, 'royalty_util')    ?? '—';
+    document.getElementById('st-blockchain').textContent = mediaLikert(_dados, 'blockchain_conf') ?? '—';
+    document.getElementById('st-relevancia').textContent = mediaLikert(_dados, 'relevancia')      ?? '—';
+
+    const usaria = _dados.filter(d => d.usaria === 'sim' || d.usaria === 'talvez').length;
+    document.getElementById('st-usaria').textContent =
+      _dados.length ? `${Math.round(usaria / _dados.length * 100)}%` : '—';
+
+    // Gráficos
+    barLikert('ch-royalty',    _dados, 'royalty_util');
+    barLikert('ch-blockchain', _dados, 'blockchain_conf');
+    barLikert('ch-relevancia', _dados, 'relevancia');
+    pieCategoria('ch-usaria',   _dados, 'usaria');
+    pieCategoria('ch-metamask', _dados, 'metamask_barreira');
+    pieCategoria('ch-canais',   _dados, 'canais');
+
+    // Respostas abertas
+    const openDiv = document.getElementById('open-list');
+    openDiv.innerHTML = '';
+    const openFields = [
+      { key: 'feat_importante',  label: 'Funcionalidade mais importante' },
+      { key: 'preocupacoes',     label: 'Preocupações e limitações percebidas' },
+      { key: 'comentarios',      label: 'Comentários adicionais' },
+    ];
+    _dados.forEach((d, idx) => {
+      const hasOpen = openFields.some(f => d[f.key]);
+      if (!hasOpen) return;
+      const box = document.createElement('div');
+      box.className = 'open-answers';
+      box.innerHTML = `<h4>Resposta #${idx + 1} — ${d._timestamp || d.createdAt || ''}</h4>`;
+      openFields.forEach(f => {
+        if (!d[f.key]) return;
+        box.innerHTML += `<div class="answer-item">
+          <div class="q">${f.label}</div>
+          <div class="a">${escapeHtml(d[f.key])}</div>
+        </div>`;
+      });
+      openDiv.appendChild(box);
+    });
+
+    // Tabela completa
+    const allKeys = [...new Set(_dados.flatMap(d => Object.keys(d)))].filter(k => !k.startsWith('_') && k !== 'id' && k !== 'createdAt');
+    const thead   = document.getElementById('thead');
+    const tbody   = document.getElementById('tbody');
+
+    thead.innerHTML = `<tr>
+      <th>#</th>
+      <th>Data</th>
+      ${allKeys.map(k => `<th>${k}</th>`).join('')}
+      <th></th>
+    </tr>`;
+
+    tbody.innerHTML = _dados.map((d, i) => `<tr>
+      <td>${i + 1}</td>
+      <td>${d._timestamp || d.createdAt?.slice(0,10) || '—'}</td>
+      ${allKeys.map(k => `<td title="${escapeHtml(String(d[k] ?? ''))}">${escapeHtml(String(d[k] ?? '—'))}</td>`).join('')}
+      <td><button class="delete-btn" onclick="excluir('${d.id}')">Excluir</button></td>
+    </tr>`).join('');
+  }
+
+  // ── Excluir ────────────────────────────────────────────────────────────────
+  async function excluir(id) {
+    if (!confirm('Remover esta avaliação permanentemente?')) return;
+    const token = document.getElementById('tok').value.trim();
+    try {
+      const resp = await fetch(`${API_BASE}/avaliacoes/${id}`, {
+        method:  'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!resp.ok) throw new Error(`Erro ${resp.status}`);
+      _dados = _dados.filter(d => d.id !== id);
+      renderizar();
+    } catch (err) {
+      alert('Erro ao excluir: ' + err.message);
+    }
+  }
+
+  // ── Export ─────────────────────────────────────────────────────────────────
+  function exportarJSON() {
+    baixar(JSON.stringify(_dados, null, 2), 'avaliacoes_dlm.json', 'application/json');
+  }
+
+  function exportarCSV() {
+    if (!_dados.length) return;
+    const keys = [...new Set(_dados.flatMap(d => Object.keys(d)))];
+    const linhas = [keys.join(';')];
+    _dados.forEach(d => {
+      linhas.push(keys.map(k => {
+        const v = d[k] ?? '';
+        return `"${String(Array.isArray(v) ? v.join('|') : v).replace(/"/g, '""')}"`;
+      }).join(';'));
+    });
+    baixar(linhas.join('\n'), 'avaliacoes_dlm.csv', 'text/csv;charset=utf-8');
+  }
+
+  function baixar(conteudo, nome, tipo) {
+    const a  = document.createElement('a');
+    a.href   = URL.createObjectURL(new Blob([conteudo], { type: tipo }));
+    a.download = nome;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Carrega automaticamente se token estiver na hash (ex: dashboard.html#eyJ…)
+  if (location.hash.length > 1) {
+    document.getElementById('tok').value = location.hash.slice(1);
+    carregar();
+  }
+</script>
+</body>
+</html>

@@ -13,11 +13,12 @@ import fs   from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-const __dirname    = path.dirname(fileURLToPath(import.meta.url));
-const STORAGE_ROOT = process.env.STORAGE_PATH
+const __dirname       = path.dirname(fileURLToPath(import.meta.url));
+const STORAGE_ROOT    = process.env.STORAGE_PATH
   || path.resolve(__dirname, "../../../storage");
-const LICENSES_DIR = path.join(STORAGE_ROOT, "licenses");
-const USERS_FILE   = path.join(STORAGE_ROOT, "users.json");
+const LICENSES_DIR    = path.join(STORAGE_ROOT, "licenses");
+const USERS_FILE      = path.join(STORAGE_ROOT, "users.json");
+const AVALIACOES_FILE = path.join(STORAGE_ROOT, "avaliacoes.json");
 
 let pool    = null;
 let dbError = null; // último erro de conexão, exposto no /health para diagnóstico
@@ -40,6 +41,11 @@ const CREATE_TABLES_SQL = `
     current_owner_address TEXT NOT NULL,
     data                  TEXT NOT NULL,
     updated_at            TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS dlm_avaliacoes (
+    id          TEXT PRIMARY KEY,
+    created_at  TEXT NOT NULL,
+    data        TEXT NOT NULL
   );
 `;
 
@@ -194,6 +200,46 @@ export async function dbListLicensesByOwner(address) {
   return books;
 }
 
+// ── Avaliações ────────────────────────────────────────────────────────────────
+
+export async function dbInsertAvaliacao(record) {
+  if (pool) {
+    await pool.query(
+      `INSERT INTO dlm_avaliacoes (id, created_at, data) VALUES ($1, $2, $3)`,
+      [record.id, record.createdAt, JSON.stringify(record)]
+    );
+    return;
+  }
+  const arr = _loadAvaliacoesFile();
+  arr.push(record);
+  _saveAvaliacoesFile(arr);
+}
+
+export async function dbListAvaliacoes() {
+  if (pool) {
+    const { rows } = await pool.query(
+      "SELECT data FROM dlm_avaliacoes ORDER BY created_at DESC"
+    );
+    return rows.map(r => JSON.parse(r.data));
+  }
+  return _loadAvaliacoesFile().slice().reverse();
+}
+
+export async function dbDeleteAvaliacao(id) {
+  if (pool) {
+    const { rowCount } = await pool.query(
+      "DELETE FROM dlm_avaliacoes WHERE id = $1", [id]
+    );
+    return rowCount > 0;
+  }
+  const arr = _loadAvaliacoesFile();
+  const idx = arr.findIndex(r => r.id === id);
+  if (idx === -1) return false;
+  arr.splice(idx, 1);
+  _saveAvaliacoesFile(arr);
+  return true;
+}
+
 // ── Helpers de arquivo (fallback) ─────────────────────────────────────────────
 
 function _ensureDirs() {
@@ -212,4 +258,14 @@ function _loadUsersFile() {
 
 function _saveUsersFile(db) {
   fs.writeFileSync(USERS_FILE, JSON.stringify(db, null, 2));
+}
+
+function _loadAvaliacoesFile() {
+  fs.mkdirSync(STORAGE_ROOT, { recursive: true });
+  if (!fs.existsSync(AVALIACOES_FILE)) fs.writeFileSync(AVALIACOES_FILE, "[]");
+  return JSON.parse(fs.readFileSync(AVALIACOES_FILE, "utf8"));
+}
+
+function _saveAvaliacoesFile(arr) {
+  fs.writeFileSync(AVALIACOES_FILE, JSON.stringify(arr, null, 2));
 }

@@ -274,6 +274,19 @@
       .likert-options { gap: .25rem; }
     }
 
+    /* status de envio ao servidor */
+    .send-status {
+      font-size: .85rem;
+      padding: .4rem .8rem;
+      border-radius: 6px;
+      margin-bottom: .8rem;
+      display: none;
+    }
+    .send-status:not(:empty) { display: block; }
+    .send-status.sending { background: #1e3a5f; color: #93c5fd; }
+    .send-status.ok      { background: #064e3b44; color: #6ee7b7; }
+    .send-status.error   { background: #7f1d1d44; color: #fca5a5; }
+
     @media print {
       body { background: #fff; color: #000; }
       .section { background: #f8f8f8; border-color: #ccc; }
@@ -555,6 +568,7 @@
   <div id="resultado">
     <h3>✓ Respostas registradas</h3>
     <p>Obrigado pela participação. Abaixo estão suas respostas em formato JSON — copie e envie ao pesquisador se necessário.</p>
+    <div id="send-status" class="send-status"></div>
     <pre id="json-out"></pre>
     <button class="copy-resp" onclick="copiarJSON()">Copiar JSON</button>
     <button class="copy-resp" onclick="imprimirPag()">Imprimir</button>
@@ -580,33 +594,59 @@
     });
   });
 
+  // URL do servidor — usa mesma origem se servido pelo DLM API, senão localhost
+  const API_BASE = window.location.port === '3001'
+    ? 'http://localhost:3000/api/v1'
+    : `${window.location.origin}/api/v1`;
+
   // Submit
-  document.getElementById('form').addEventListener('submit', e => {
+  document.getElementById('form').addEventListener('submit', async e => {
     e.preventDefault();
 
     const data = {};
     const fd   = new FormData(e.target);
 
-    // campos únicos
     for (const [k, v] of fd.entries()) {
       if (data[k]) {
-        // múltiplos checkboxes
         data[k] = Array.isArray(data[k]) ? [...data[k], v] : [data[k], v];
       } else {
         data[k] = v;
       }
     }
 
-    // timestamp
     data._timestamp = new Date().toLocaleString('pt-BR');
     data._versao    = 'avaliacao_autores_v1';
 
-    // exibe
+    // Exibe JSON imediatamente (feedback local)
     const out = document.getElementById('json-out');
     out.textContent = JSON.stringify(data, null, 2);
-    const res = document.getElementById('resultado');
-    res.style.display = 'block';
-    res.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const resBox = document.getElementById('resultado');
+    resBox.style.display = 'block';
+    resBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // Envia ao servidor
+    const statusEl = document.getElementById('send-status');
+    statusEl.textContent = 'Enviando…';
+    statusEl.className   = 'send-status sending';
+    try {
+      const resp = await fetch(`${API_BASE}/avaliacoes`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(data),
+      });
+      if (resp.ok) {
+        const json = await resp.json();
+        statusEl.textContent = `Salvo no servidor (id: ${json.id.slice(0,8)}…)`;
+        statusEl.className   = 'send-status ok';
+      } else {
+        const err = await resp.json().catch(() => ({}));
+        statusEl.textContent = `Erro ao salvar: ${err.error || resp.status}. Copie o JSON manualmente.`;
+        statusEl.className   = 'send-status error';
+      }
+    } catch (err) {
+      statusEl.textContent = 'Servidor fora do ar — copie o JSON e envie depois.';
+      statusEl.className   = 'send-status error';
+    }
   });
 
   function copiarJSON() {

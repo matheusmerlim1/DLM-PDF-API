@@ -51,6 +51,11 @@ import {
   registerUser,
   lookupUser,
 } from "../services/userRegistryService.js";
+import {
+  salvarAvaliacao,
+  listarAvaliacoes,
+  excluirAvaliacao,
+} from "../services/avaliacaoService.js";
 import crypto from "crypto";
 
 // Janela de validade da assinatura MetaMask: 5 minutos
@@ -888,6 +893,48 @@ router.post("/publisher/encrypt", requireAuth, wrap(async (req, res) => {
     size:         dlmBuffer.length,
     metadata:     metadata ?? null,
   });
+}));
+
+// ═══════════════════════════════════════════════════════════
+//  AVALIAÇÕES — formulário de autores
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * POST /avaliacoes
+ * Recebe e persiste uma resposta do formulário avaliacao_autores.html.
+ * Público — sem autenticação (o respondente é anônimo por design).
+ * Body: objeto JSON com todos os campos do formulário.
+ */
+router.post("/avaliacoes", wrap(async (req, res) => {
+  const data = req.body;
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return res.status(400).json({ error: "Corpo da requisição deve ser um objeto JSON." });
+  }
+  // Rejeita payload vazio ou sem nenhum campo de resposta
+  const keys = Object.keys(data).filter(k => k !== "timestamp");
+  if (keys.length === 0) {
+    return res.status(400).json({ error: "Nenhuma resposta encontrada no payload." });
+  }
+  const record = await salvarAvaliacao(data);
+  res.status(201).json({ ok: true, id: record.id, createdAt: record.createdAt });
+}));
+
+/**
+ * GET /avaliacoes
+ * Lista todas as avaliações salvas. Protegido por Bearer JWT (apenas pesquisadores).
+ */
+router.get("/avaliacoes", requireAuth, wrap(async (req, res) => {
+  const lista = await listarAvaliacoes();
+  res.json({ total: lista.length, avaliacoes: lista });
+}));
+
+/**
+ * DELETE /avaliacoes/:id
+ * Remove uma avaliação pelo ID. Protegido por Bearer JWT.
+ */
+router.delete("/avaliacoes/:id", requireAuth, wrap(async (req, res) => {
+  await excluirAvaliacao(req.params.id);
+  res.json({ ok: true, deleted: req.params.id });
 }));
 
 export default router;
