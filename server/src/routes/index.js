@@ -42,6 +42,7 @@ import {
   transferLicense,
   updateEncryptedWith,
   updateMetadata,
+  deleteLicense,
   getCandidateAddresses,
   generateLicenseId,
   listLicensesByOwner,
@@ -206,6 +207,22 @@ router.get("/licenses/public/:id", wrap(async (req, res) => {
     transferCount: record.ownershipHistory.length - 1,
     createdAt:     record.createdAt,
   });
+}));
+
+/**
+ * DELETE /licenses/:id
+ * Remove uma licença do registro. Só o dono atual pode excluir.
+ * Body (JSON): { ownerAddress }
+ */
+router.delete("/licenses/:id", wrap(async (req, res) => {
+  const { id } = req.params;
+  const { ownerAddress } = req.body;
+
+  if (!ownerAddress || !/^0x[0-9a-fA-F]{40}$/i.test(ownerAddress))
+    return res.status(400).json({ error: "ownerAddress (endereço Ethereum) obrigatório." });
+
+  await deleteLicense(id, ownerAddress);
+  res.json({ deleted: true, licenseId: id });
 }));
 
 /**

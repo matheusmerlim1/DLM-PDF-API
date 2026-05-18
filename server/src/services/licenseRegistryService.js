@@ -10,6 +10,7 @@ import crypto from "crypto";
 import {
   dbGetLicense,
   dbSetLicense,
+  dbDeleteLicense,
   dbListLicensesByOwner,
 } from "./db.js";
 
@@ -52,6 +53,17 @@ export async function loadLicense(licenseId) {
 
 export async function saveLicense(record) {
   await dbSetLicense(record.licenseId, record);
+}
+
+export async function deleteLicense(licenseId, ownerAddress) {
+  const record = await dbGetLicense(licenseId);
+  if (!record) throw new Error(`Licença ${licenseId} não encontrada.`);
+  if (record.currentOwner.address.toLowerCase() !== ownerAddress.toLowerCase()) {
+    const err = new Error("Acesso negado: você não é o proprietário desta licença.");
+    err.statusCode = 403;
+    throw err;
+  }
+  await dbDeleteLicense(licenseId);
 }
 
 export async function updateMetadata(licenseId, title, author) {

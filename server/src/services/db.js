@@ -158,6 +158,16 @@ export async function dbSetLicense(licenseId, record) {
   fs.writeFileSync(_licensePath(id), JSON.stringify(record, null, 2));
 }
 
+export async function dbDeleteLicense(licenseId) {
+  const id = String(licenseId);
+  if (pool) {
+    await pool.query("DELETE FROM dlm_licenses WHERE license_id = $1", [id]);
+    return;
+  }
+  const p = _licensePath(id);
+  if (fs.existsSync(p)) fs.unlinkSync(p);
+}
+
 export async function dbListLicensesByOwner(address) {
   const normalized = address.toLowerCase();
   if (pool) {
