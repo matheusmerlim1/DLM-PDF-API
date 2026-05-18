@@ -41,6 +41,7 @@ import {
   loadLicense,
   transferLicense,
   updateEncryptedWith,
+  updateMetadata,
   getCandidateAddresses,
   generateLicenseId,
   listLicensesByOwner,
@@ -207,6 +208,33 @@ router.get("/licenses/public/:id", wrap(async (req, res) => {
   });
 }));
 
+/**
+ * PATCH /licenses/:id/metadata
+ * Atualiza title e/ou author de uma licença existente.
+ * Só permite a atualização se o ownerAddress for o dono atual.
+ *
+ * Body (JSON): { title?, author?, ownerAddress }
+ * Retorna: { licenseId, title, author }
+ */
+router.patch("/licenses/:id/metadata", wrap(async (req, res) => {
+  const { id } = req.params;
+  const { title, author, ownerAddress } = req.body;
+
+  if (!title && !author)
+    return res.status(400).json({ error: "Informe pelo menos title ou author." });
+  if (!ownerAddress || !/^0x[0-9a-fA-F]{40}$/i.test(ownerAddress))
+    return res.status(400).json({ error: "ownerAddress (endereço Ethereum) obrigatório." });
+
+  const record = await loadLicense(id);
+  if (!record)
+    return res.status(404).json({ error: `Licença ${id} não encontrada.` });
+  if (record.currentOwner.address.toLowerCase() !== ownerAddress.toLowerCase())
+    return res.status(403).json({ error: "Acesso negado: você não é o proprietário desta licença." });
+
+  const updated = await updateMetadata(id, title || undefined, author || undefined);
+  res.json({ licenseId: id, title: updated.title || null, author: updated.author || null });
+}));
+
 // ═══════════════════════════════════════════════════════════
 //  DRM — ENCRIPTOGRAFAR
 // ═══════════════════════════════════════════════════════════
@@ -259,6 +287,13 @@ router.post("/encrypt", wrap(async (req, res) => {
   const existingLicense = await loadLicense(licenseId);
   if (existingLicense) {
     await updateEncryptedWith(licenseId, publicKey.toLowerCase());
+    // Atualiza title/author se o dono atual re-encripta e o registro ainda não tem esses campos
+    if (metadata && existingLicense.currentOwner.address.toLowerCase() === publicKey.toLowerCase()) {
+      await updateMetadata(licenseId,
+        (metadata.title  && !existingLicense.title)  ? metadata.title  : undefined,
+        (metadata.author && !existingLicense.author) ? metadata.author : undefined,
+      );
+    }
   } else {
     await createLicense(licenseId, owner, metadata);
   }

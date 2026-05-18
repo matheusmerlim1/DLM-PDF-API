@@ -54,6 +54,15 @@ export async function saveLicense(record) {
   await dbSetLicense(record.licenseId, record);
 }
 
+export async function updateMetadata(licenseId, title, author) {
+  const record = await dbGetLicense(licenseId);
+  if (!record) throw new Error(`Licença ${licenseId} não encontrada.`);
+  if (title)  record.title  = title;
+  if (author) record.author = author;
+  await dbSetLicense(licenseId, record);
+  return record;
+}
+
 export async function updateEncryptedWith(licenseId, address) {
   const record = await dbGetLicense(licenseId);
   if (!record) throw new Error(`Licença ${licenseId} não encontrada no registro.`);

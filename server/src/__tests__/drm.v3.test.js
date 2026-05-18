@@ -287,6 +287,7 @@ import {
   createLicense,
   transferLicense,
   listLicensesByOwner,
+  updateMetadata,
 } from "../services/licenseRegistryService.js";
 import fs   from "fs";
 import path from "path";
@@ -335,5 +336,54 @@ describe("Regressão: title/author preservados após transferência", () => {
     expect(book.author).toBe("Autor Original");
 
     fs.unlinkSync(path.join(TEST_STORAGE, `${licId2}.json`));
+  });
+});
+
+// ── Regressão: updateMetadata corrige livros sem título (Licença #N) ──────────
+// Bug: livros criados sem title/author ficavam exibidos como "Licença #N" na
+// biblioteca do novo dono. updateMetadata permite corrigi-los sem re-encriptar.
+// Cenário: criar sem título → busca retorna null → updateMetadata → busca retorna título
+//           → transferir → novo dono vê o título correto.
+
+describe("Regressão: updateMetadata corrige livros sem título e persiste após transferência", () => {
+  const licId = "test-updatemeta-" + Date.now();
+  const ADDR_A = "0x" + "a1".repeat(20);
+  const ADDR_B = "0x" + "b2".repeat(20);
+
+  afterAll(() => {
+    for (const id of [licId]) {
+      const p = path.join(TEST_STORAGE, `${id}.json`);
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    }
+  });
+
+  test("livro criado sem título aparece como null em listLicensesByOwner", async () => {
+    await createLicense(licId, { address: ADDR_A, name: "Dono A", cpf: "11111111111" }, null);
+    const books = await listLicensesByOwner(ADDR_A);
+    const book  = books.find(b => b.licenseId === licId);
+    expect(book).toBeDefined();
+    expect(book.title).toBeNull();
+    expect(book.author).toBeNull();
+  });
+
+  test("updateMetadata define title/author no registro existente", async () => {
+    await updateMetadata(licId, "Dom Quixote", "Cervantes");
+    const books = await listLicensesByOwner(ADDR_A);
+    const book  = books.find(b => b.licenseId === licId);
+    expect(book.title).toBe("Dom Quixote");
+    expect(book.author).toBe("Cervantes");
+  });
+
+  test("title/author são preservados após transferência para novo dono", async () => {
+    await transferLicense(licId, ADDR_A, { address: ADDR_B, name: "Dono B", cpf: "22222222222" }, null);
+    const books = await listLicensesByOwner(ADDR_B);
+    const book  = books.find(b => b.licenseId === licId);
+    expect(book.title).toBe("Dom Quixote");
+    expect(book.author).toBe("Cervantes");
+  });
+
+  test("dono A não vê mais o livro após transferência", async () => {
+    const booksA = await listLicensesByOwner(ADDR_A);
+    expect(booksA.find(b => b.licenseId === licId)).toBeUndefined();
   });
 });
