@@ -23,7 +23,7 @@ Thumbs.db
 .claude/settings.local.json
 
 # Artigo LaTeX — não entra no repositório
-artigo_dlm_v5*.tex
+artigo_dlm_v*.tex
 *.aux
 *.log
 *.out
@@ -34,3 +34,7 @@ artigo_dlm_v5*.tex
 
 # Script gerador de imagens
 generate_images.py
+
+# Dados do formulário de avaliação — não entra no repositório
+dados artigo.xlsx
+*.xlsx
