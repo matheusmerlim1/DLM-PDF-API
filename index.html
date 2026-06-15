@@ -602,9 +602,10 @@
   <section id="intro" class="active">
     <h2>O que é a DLM-PDF API</h2>
     <p class="section-desc">
-      A DLM-PDF API é um serviço de gestão de direitos digitais (DRM) para e-books em PDF.
-      Ela permite que qualquer site distribua arquivos PDF protegidos — vinculados a uma
-      carteira Ethereum — de forma que apenas o proprietário da licença consiga abrir o arquivo.
+      A DLM-PDF API é um serviço de gestão de direitos digitais (DRM) para e-books em PDF
+      baseado em blockchain. Ela protege a autorização de acesso, e não o arquivo em si: a posse
+      de cada exemplar fica registrada numa carteira Ethereum, e a API permite distribuir,
+      transferir e emprestar licenças de forma que apenas o titular atual consiga abrir o conteúdo.
     </p>
 
     <div class="card">
@@ -635,7 +636,7 @@
 │ ciphertext  N bytes   AES-256-CBC(verifyCode[4B] ‖ PDF)    │
 │  └─ opcionalmente: "DLMm" + metaLen[2B] + JSON(title,author)│
 └────────────────────────────────────────────────────────────┘</span></pre>
-      <p>A chave AES <strong>nunca está no arquivo</strong>. Ela é derivada no servidor via HKDF-SHA256 usando a chave mestra + licenseId + ownerAddr. O campo <code>verifyCode = SHA256(pdf)[0:4]</code> — análogo ao dígito verificador do CPF — confirma que a chave usada era a correta.</p>
+      <p>A chave AES <strong>nunca está no arquivo</strong>. Ela é derivada no servidor via HKDF-SHA256 usando a chave mestra + licenseId + ownerAddr. O campo <code>verifyCode = SHA256(pdf)[0:4]</code> é um identificador auxiliar: após a decifração, é recalculado e comparado para selecionar a chave correta na cadeia de custódia, sem expor o conteúdo. Ele não é mecanismo de proteção — a segurança vem da chave AES-256 derivada no servidor e do HMAC-SHA-256.</p>
     </div>
 
     <div class="card">

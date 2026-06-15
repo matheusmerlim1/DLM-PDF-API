@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DLM-PDF: Uma Plataforma Web para Garantir Posse Real de Livros Digitais via Blockchain</title>
+<title>DLM-PDF: Uma Plataforma Web de Empréstimo e Revenda de Livros Digitais com Controle de Posse via Blockchain</title>
 <style>
   :root{
     --ink:#1a1a1a;
@@ -169,30 +169,11 @@
   th{background:#f0f0f0}
   td.c,th.c{text-align:center}
 
-  /* video placeholders styled like figures */
+  /* video styled like a figure */
   .video-figure{margin:22px 0}
   .video-figure video{width:100%;display:block;border:1px solid #bbb;background:#000}
   .video-steps{margin:14px 0 0;padding-left:1.4em}
   .video-steps li{margin-bottom:8px;text-align:justify}
-  .video-frame{
-    aspect-ratio:16/9;
-    width:100%;
-    border:1px solid #bbb;
-    background:
-      repeating-linear-gradient(45deg,#f3f3f3,#f3f3f3 14px,#ececec 14px,#ececec 28px);
-    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
-    color:#888;
-  }
-  .video-frame .play{
-    width:58px;height:58px;border-radius:50%;
-    background:#fff;border:1px solid #bbb;
-    display:flex;align-items:center;justify-content:center;
-  }
-  .video-frame .play:after{
-    content:"";border-style:solid;border-width:11px 0 11px 18px;
-    border-color:transparent transparent transparent #888;margin-left:5px;
-  }
-  .video-frame .soon{font-size:9.5pt;letter-spacing:.05em;text-transform:uppercase}
 
   .refs{font-size:11pt}
   .refs li{margin-bottom:9px;text-align:justify}
@@ -215,206 +196,179 @@
 <article class="paper">
 
   <!-- ============ CABEÇALHO ============ -->
-  <h1 class="doc-title">DLM-PDF: Uma Plataforma Web para Garantir Posse Real de Livros Digitais via Blockchain</h1>
+  <h1 class="doc-title">DLM-PDF: Uma Plataforma Web de Empréstimo e Revenda de Livros Digitais com Controle de Posse via Blockchain</h1>
 
-  <p class="authors">Arnaldo M. Quintanilha<sup>1</sup>, Gabriel [Sobrenome]<sup>1</sup>, Matheus P. Raposo<sup>2</sup></p>
+  <p class="authors">Arnaldo M. Quintanilha<sup>1</sup>, Gabriel A. Torres<sup>1</sup>, Matheus P. Raposo<sup>2</sup></p>
   <p class="affil">
     <sup>1</sup>Bacharelado em Sistemas de Informação &ndash; CEFET/RJ<br>
     <sup>2</sup>Mestre em Ciência e Tecnologia de Materiais &ndash; UERJ<br>
     Nova Friburgo &ndash; RJ &ndash; Brazil
   </p>
-  <p class="emails">arnaldomartinsq@gmail.com, gabriel@email.com, matheusmerlim@hotmail.com</p>
+  <p class="emails">arnaldomartinsq@gmail.com, gabrieldev@gmail.com, matheusmerlim@hotmail.com</p>
 
   <p class="links-bar">
     <a href="https://github.com/matheusmerlim1/DLM-PDF-API" target="_blank" rel="noopener">Repositório</a> ·
-    <a href="https://matheusmerlim1.github.io/trabalho-nilson/" target="_blank" rel="noopener">Livraria DLM (demo)</a> ·
-    <a href="https://dlm-pdf-server-production.up.railway.app/api/v1/health" target="_blank" rel="noopener">API de produção</a>
+    <a href="https://matheusmerlim1.github.io/trabalho-nilson" target="_blank" rel="noopener">Demo (revenda/empréstimo)</a> ·
+    <a href="https://matheusmerlim1.github.io/DLM-PDF-encriptador" target="_blank" rel="noopener">Demo (leitura)</a>
   </p>
 
   <!-- ============ ABSTRACT ============ -->
   <div class="abstract en">
-    <p><span class="lbl">Abstract. </span>This paper proposes DLM-PDF, a web-based digital ownership platform for e-books using Blockchain technology. The system enables users to resell and lend digital books, rights widely available in physical markets but blocked by traditional DRM systems. Unlike approaches that protect the file itself, DLM-PDF protects only the access authorization, checked in real time by the server against an ownership registry anchored on the Ethereum network. All cryptographic operations are centralized in a dedicated DRM API with three core methods: encrypt, decrypt and transfer. To assess the proposal, we ran a survey with published authors: every participant had already had work pirated, and most did not know that, under the current digital model, the author receives nothing when a copy is resold. Support for paying the author a commission on each resale was high (mean of 4.25 out of 5). The server runs in production on Railway, and a companion storefront published on GitHub Pages demonstrates the full purchase and access flow against the live API.</p>
+    <p><span class="lbl">Abstract. </span>The popularization of digital books has expanded access to content, but it has not been accompanied by the transfer of rights traditionally associated with physical books, such as resale and lending between readers. Current DRM systems link access to specific accounts, devices, or platforms, restricting effective ownership of the purchased copies. This work proposes DLM-PDF, a web platform for managing digital ownership of e-books based on blockchain. The solution utilizes smart contracts on the Ethereum network to register copy ownership and an authentication server based on access authorization rather than the file itself. The system enables the transfer and lending of digital books, maintaining a single authorized owner at a time. The architecture was implemented through smart contracts, an authentication server, a DRM API, and a browser-accessible web client. The proposal was evaluated through scenarios of issuance, ownership validation, transfer, and digital lending. The results indicate that this approach can bring the rights of digital books closer to those traditionally associated with physical books.</p>
   </div>
 
   <div class="abstract pt">
-    <p><span class="lbl">Resumo. </span>Este trabalho propõe o DLM-PDF, uma plataforma web de posse digital para e-books baseada em Blockchain. O sistema permite que usuários revendam e emprestem livros digitais, direitos comuns no mercado físico mas bloqueados pelos sistemas de DRM tradicionais. Diferente de abordagens que protegem o arquivo em si, o DLM-PDF protege apenas a autorização de acesso, verificada em tempo real pelo servidor contra um registro de titularidade ancorado na rede Ethereum. Toda a criptografia é centralizada em uma API DRM com três métodos: encriptar, decriptar e transferir. Para avaliar a proposta, aplicamos um formulário a autores com obra publicada: todos já tiveram alguma obra pirateada e a maioria não sabia que, no modelo digital atual, o autor nada recebe quando uma cópia é revendida. O apoio à comissão automática ao autor na revenda foi alto (média de 4,25 em 5). O servidor está em produção no Railway, e a vitrine complementar publicada no GitHub Pages demonstra o fluxo completo de compra e acesso contra a API ao vivo.</p>
+    <p><span class="lbl">Resumo. </span>A popularização dos livros digitais ampliou o acesso ao conteúdo, mas não foi acompanhada pela transferência de direitos tradicionalmente associados ao livro físico, como a revenda e o empréstimo entre leitores. Os sistemas de DRM atuais vinculam o acesso a contas, dispositivos ou plataformas específicas, restringindo a posse efetiva dos exemplares adquiridos. Este trabalho propõe o DLM-PDF, uma plataforma web para gestão de posse digital de e-books baseada em blockchain. A solução utiliza contratos inteligentes na rede Ethereum para registrar a titularidade dos exemplares e um servidor de autenticação baseado na autorização de acesso em vez do arquivo em si. O sistema permite a transferência e o empréstimo de livros digitais, mantendo um único titular autorizado por vez. A arquitetura foi implementada por meio de contratos inteligentes, servidor de autenticação, API DRM e cliente web acessível pelo navegador. A proposta foi avaliada por meio de cenários de emissão, validação de posse, transferência e empréstimo digital. Os resultados indicam que a abordagem pode aproximar os direitos dos livros digitais daqueles tradicionalmente associados aos livros físicos.</p>
   </div>
 
   <hr class="sep">
 
   <!-- ============ 1. INTRODUÇÃO ============ -->
   <h2 class="sec">1. Introdução</h2>
-
-  <h3 class="sub">1.1. A história do livro digital</h3>
-  <p>Em 1971, Michael Hart digitou a Declaração de Independência dos Estados Unidos num terminal da Universidade de Illinois e disponibilizou o texto num servidor compartilhado. Ele chamou aquilo de Projeto Gutenberg. A ideia era simples: textos digitalizados poderiam chegar a qualquer pessoa com acesso à rede, de graça, para sempre. Cinquenta anos depois, o mercado global de e-books movimenta bilhões de dólares. Só em 2022, os livros digitais representaram 21% das vendas totais de editoras nos Estados Unidos, segundo a Association of American Publishers.</p>
-  <p>O crescimento foi rápido. Em 1998 chegaram os primeiros leitores comerciais, o Rocket eBook e o SoftBook. Em 2007, a Amazon lançou o Kindle e reconfigurou o mercado em escala global. O problema é que, nesse caminho, o livro digital perdeu uma característica fundamental do livro físico: a posse real.</p>
-
-  <h3 class="sub">1.2. Posse física versus posse digital</h3>
-  <p>Quando você compra um livro numa livraria, ele é seu. Dá pra revender numa feira, emprestar pro amigo, guardar na estante por décadas, passar de herança. Ninguém pode entrar na sua casa e pegar o livro de volta. No mundo digital, essa lógica não se aplica. Plataformas como Amazon Kindle vendem não um livro, mas uma licença de uso: revogável, intransferível, vinculada a uma conta específica e dependente dos servidores de uma empresa privada.</p>
-  <p>Em 2009, a Amazon deletou remotamente cópias de 1984, de George Orwell, dos dispositivos Kindle de clientes que já haviam pago pelo livro. Sem aviso, sem reembolso imediato. O episódio é simbólico: o comprador não possuía nada, era locatário. Perzanowski e Schultz (2016) chamam esse fenômeno de "the end of ownership", o fim da posse. No mercado digital, compradores pagam o preço de uma compra, mas recebem os direitos de um aluguel.</p>
-
-  <h3 class="sub">1.3. O problema da pirataria</h3>
-  <p>A pirataria é real e tem impacto econômico. Liebowitz (2006) demonstrou que o compartilhamento não autorizado de arquivos afeta a indústria criativa de forma mensurável. O que a indústria fez em resposta? Criou sistemas de DRM cada vez mais restritivos. E aí surgiu um paradoxo curioso: quem pirateia o arquivo tem mais liberdade do que quem comprou legalmente. O arquivo pirateado roda em qualquer dispositivo, pode ser guardado offline, repassado sem restrição. O arquivo comprado com DRM, não. O consumidor que pagou está sendo penalizado por ter pagado.</p>
-
-  <h3 class="sub">1.4. O que deve mudar</h3>
-  <p>Há dois lados insatisfeitos nessa equação. Do lado do comprador, a perda de direitos que ele teria num livro físico. Do lado do autor, a ausência de qualquer participação em revendas subsequentes. Este trabalho propõe um sistema que devolve ao comprador os direitos de revenda e empréstimo que ele teria num livro impresso. A proteção não está no arquivo, mas na autorização de acesso: copiar o arquivo sem possuir a licença na blockchain não dá acesso ao conteúdo. A posse é um estado registrado e auditável, não uma propriedade do arquivo.</p>
+  <p>A popularização dos livros digitais ampliou significativamente o acesso ao conhecimento e consolidou um mercado que movimenta bilhões de dólares anualmente. Apesar desse crescimento, os livros digitais não preservaram uma característica fundamental dos livros físicos: a posse efetiva do exemplar adquirido.</p>
+  <p>Quando um consumidor adquire um livro físico, passa a deter a posse daquele exemplar, podendo revendê-lo, emprestá-lo ou mantê-lo indefinidamente. Porém, no mundo digital, essa lógica não se aplica. Plataformas como a Amazon Kindle comercializam livros digitais por meio de licenças de uso vinculadas à conta do usuário e sujeitas às políticas da plataforma. Um caso famoso ocorreu em 2009, quando a Amazon removeu remotamente exemplares digitais das obras <i>1984</i> e <i>Animal Farm</i> de dispositivos Kindle, evidenciando que o acesso ao conteúdo permanece condicionado às regras da plataforma (STONE, 2009).</p>
+  <p>Perzanowski e Schultz (2016) descrevem esse fenômeno como "the end of ownership", em que consumidores pagam por produtos digitais, mas recebem direitos mais próximos de uma licença de uso do que da posse efetiva. Paralelamente, a facilidade de reprodução e distribuição de arquivos digitais impõe desafios relacionados à proteção dos direitos autorais. Segundo Liebowitz (2006), a pirataria produz impactos econômicos mensuráveis ao substituir vendas legítimas por cópias não autorizadas.</p>
+  <p>Como resposta, a indústria adotou sistemas de DRM cada vez mais restritivos. Entretanto, tais mecanismos frequentemente limitam funcionalidades legítimas dos usuários que adquiriram legalmente o conteúdo. Como consequência, surge um paradoxo: usuários que obtêm versões não autorizadas dos arquivos frequentemente encontram menos restrições de uso do que aqueles que realizaram a compra por meios oficiais. Enquanto cópias protegidas por DRM podem depender de plataformas, dispositivos ou serviços específicos, versões sem essas restrições tendem a oferecer maior liberdade de acesso e armazenamento.</p>
+  <p>Diante desse cenário, este trabalho propõe o DLM-PDF, uma plataforma de gestão de posse digital para e-books baseada em blockchain. O modelo permite a transferência e o empréstimo de exemplares digitais por meio de um mecanismo de autorização de acesso desacoplado do arquivo. A posse passa a ser representada por um registro auditável e verificável, buscando aproximar os direitos associados aos livros digitais daqueles tradicionalmente presentes no mercado de livros físicos. Para validar a proposta, foi desenvolvida uma implementação funcional da plataforma e realizados experimentos envolvendo controle de acesso, transferência de titularidade e empréstimo digital.</p>
 
   <!-- ============ 2. FUNDAMENTAÇÃO ============ -->
   <h2 class="sec">2. Fundamentação Teórica</h2>
-  <p>Antes de detalhar o DLM-PDF, vale revisar os conceitos que sustentam a proposta. Esta seção parte da gestão de direitos digitais, o campo que originou o problema que atacamos, e segue pela criptografia e pela blockchain, as duas tecnologias que usamos para resolvê-lo. Começamos pelo DRM porque é dele que vêm tanto a proteção quanto as restrições que o sistema busca reequilibrar.</p>
+  <p>Este trabalho fundamenta-se na integração de três áreas da computação: a gestão de direitos digitais, responsável pelos mecanismos de controle de acesso e distribuição de conteúdo; a criptografia, utilizada para garantir segurança e autenticação das operações; e a tecnologia blockchain, empregada como infraestrutura para registro e validação da posse digital. A seguir, são apresentados os principais fundamentos teóricos que sustentam o modelo proposto.</p>
 
   <h3 class="sub">2.1. Gestão de Direitos Digitais</h3>
-  <p>DRM (Digital Rights Management) é o conjunto de tecnologias que controlam o uso de conteúdo digital após sua distribuição. O objetivo original era proteger criadores e distribuidores contra cópias não autorizadas. Na prática, os sistemas de DRM evoluíram para controlar também o que o comprador legítimo pode fazer com o que adquiriu.</p>
-  <p>Daewon (2015) classifica os sistemas DRM em "fortes" e "fracos". Os fortes impõem restrições severas: o arquivo só abre em dispositivos autorizados e qualquer cópia é bloqueada por hardware ou por chaves vinculadas a servidores proprietários. Os fracos adotam controles mais brandos, como marcas d'água e restrições de cópia sem bloqueio total. Nenhum dos dois extremos resolve o problema: o forte protege o conteúdo mas elimina direitos legítimos do comprador; o fraco preserva esses direitos mas oferece pouca barreira contra redistribuição em massa. O sistema proposto busca um terceiro caminho: proteger a autorização de acesso, não o arquivo em si.</p>
+  <p>DRM (Digital Rights Management) corresponde ao conjunto de tecnologias utilizadas para controlar o acesso e a distribuição de conteúdo digital após sua aquisição (BECKER et al., 2003). Em geral, esses sistemas vinculam o uso do conteúdo a dispositivos, contas ou plataformas específicas, buscando restringir cópias e redistribuições não autorizadas. Embora eficazes na proteção dos direitos autorais, tais mecanismos frequentemente limitam funcionalidades legítimas dos usuários, como transferência e compartilhamento de exemplares adquiridos. Neste trabalho, adota-se uma abordagem alternativa em que a proteção é aplicada à autorização de acesso, e não ao arquivo em si, vinculando a utilização do conteúdo à posse de uma licença digital verificável.</p>
 
   <h3 class="sub">2.2. Criptografia</h3>
-  <h4 class="subsub">Criptografia Assimétrica</h4>
-  <p>O algoritmo RSA, proposto por Rivest, Shamir e Adleman (1978), é a base da criptografia assimétrica moderna. Ele opera com um par de chaves: a chave pública pode ser distribuída livremente e cifra mensagens; a chave privada, mantida em segredo, é a única que decifra. No DLM-PDF, o princípio assimétrico aparece na autenticação: a carteira Ethereum do usuário é um par de chaves baseado em curvas elípticas (ECDSA). O servidor solicita que o usuário assine um desafio com sua chave privada, uma prova de identidade sem que a chave seja transmitida.</p>
-  <h4 class="subsub">Criptografia Simétrica</h4>
-  <p>O AES, padronizado pelo NIST em 2001, é o algoritmo de criptografia simétrica mais utilizado no mundo. A mesma chave cifra e decifra os dados, o que o torna muito mais rápido que o RSA para grandes volumes. O DLM-PDF usa AES-256-CBC para cifrar o arquivo do livro. A chave de 256 bits é derivada a partir de um segredo mestre no servidor combinado com o identificador da licença, via HKDF-SHA-256. Cada exemplar tem assim uma chave única. Copiar o arquivo <span class="mono">.dlm</span> sem ter a licença correspondente não serve de nada: sem a chave, o conteúdo é ruído aleatório.</p>
+  <p>A criptografia é utilizada para proteger informações contra acesso, modificação ou uso não autorizado. Em sistemas de distribuição de conteúdo digital, ela desempenha papel fundamental na garantia de confidencialidade, integridade e autenticação.</p>
+  <p>No DLM-PDF, a confidencialidade é obtida por meio de criptografia simétrica, utilizada para proteger o conteúdo dos livros digitais. A integridade é verificada por funções de hash e códigos de autenticação criptográfica (HMAC), capazes de detectar alterações nos dados protegidos.</p>
 
   <h3 class="sub">2.3. Blockchain e Contratos Inteligentes</h3>
-  <p>A blockchain, popularizada pelo Bitcoin de Nakamoto (2008), é um registro de transações organizado em blocos encadeados criptograficamente, replicado em milhares de nós ao redor do mundo, o que a torna imutável na prática. A plataforma Ethereum, proposta por Buterin (2014), adicionou a capacidade de executar contratos inteligentes: programas que executam automaticamente quando condições predefinidas são atendidas, sem intermediário. No DLM-PDF, o contrato inteligente mantém o registro de qual carteira é dona de qual exemplar, e a transferência de posse é uma transação atômica e irreversível.</p>
+  <p>A blockchain, popularizada pelo Bitcoin (NAKAMOTO, 2008), consiste em um registro distribuído e auditável de transações mantido coletivamente pelos participantes da rede. Sua principal característica é a resistência a alterações retroativas, permitindo registrar informações de forma verificável e transparente.</p>
+  <p>A plataforma Ethereum (BUTERIN, 2014) expandiu esse conceito ao introduzir contratos inteligentes, programas executados na própria blockchain capazes de aplicar regras de negócio sem depender de uma autoridade central. Alterações de estado nesses contratos são registradas por transações sujeitas ao pagamento de taxas de execução (<i>gas</i>), enquanto consultas somente leitura podem ser realizadas sem custo.</p>
+  <p>No DLM-PDF, os contratos inteligentes são utilizados para registrar a titularidade das licenças digitais e as operações de transferência e empréstimo. Dessa forma, a blockchain atua como um registro auditável de posse, enquanto o servidor de autenticação é responsável pelo controle efetivo de acesso ao conteúdo.</p>
 
   <!-- ============ 3. TRABALHOS RELACIONADOS ============ -->
   <h2 class="sec">3. Trabalhos Relacionados</h2>
-  <p>A revisão bibliográfica foi conduzida nas bases IEEE Xplore, ResearchGate e ACM Digital Library. A busca teve como objetivo verificar se já existiam trabalhos semelhantes ao DLM-PDF, ou seja, propostas que reunissem posse digital, revenda e blockchain num sistema de fato implementado.</p>
-  <p>Oliveira e Lazarin (2020) propuseram o DLM, com empréstimo digital via contrato inteligente, mas a arquitetura exige a instalação de um software leitor proprietário e não há revenda entre usuários. Nair et al. (2005) preveem revenda em redes P2P, porém sem blockchain e sem empréstimo com revogação automática. Gaber e Zhang (2010) discutem fairness em DRM com contratos inteligentes, mas o trabalho é teórico, sem implementação. Dashti et al. (2007) fazem verificação formal do protocolo Nuovo DRM, com foco em segurança, não em posse. Kustov et al. (2022) propõem um Oráculo DVCS voltado à certificação de dados, não à transferência de posse. Wang e Hu (2018) tratam de certificados em blockchain de consórcio, não de ativos transacionáveis. Arya et al. (2020) e Lucas et al. (2025) integram blockchain a APIs RESTful, mas com foco em marketplace de serviços e em pagamentos, respectivamente.</p>
+  <p>A revisão bibliográfica foi conduzida nas bases IEEE Xplore, ResearchGate e ACM Digital Library com os descritores "digital rights management" AND ("resell" OR "resale") AND "e-book" e "Blockchain-based" AND "Authentication Service". Os trabalhos selecionados cobrem quatro linhas: DRM baseado em software local, DRM em redes P2P, autenticação descentralizada via blockchain e proteção de direitos autorais por oráculo.</p>
+  <p>Nair et al. (2005) apresentaram um modelo de redistribuição de conteúdo digital em redes P2P com preservação de DRM. A proposta prevê revenda, o que é relevante, mas não usa blockchain: a unicidade do ativo depende de dispositivos de hardware certificados e compatíveis com o esquema de licenciamento, o que cria dependência de infraestrutura proprietária e limita a auditabilidade do sistema.</p>
+  <p>Oliveira e Lazarin (2020) propuseram o DLM, sistema de gerenciamento de licenças de e-books com suporte a empréstimo digital via contrato inteligente. A arquitetura exige a instalação de um software leitor proprietário na máquina do usuário, sem o cliente instalado, o livro não abre. Isso limita a adoção em ambientes onde instalações requerem aprovação de TI.</p>
+  <p>Arya et al. (2020) propuseram um marketplace de APIs baseado em blockchain, utilizando contratos inteligentes para automatizar e arbitrar as transações registradas na blockchain. A arquitetura é útil para entender a integração de APIs com blockchain, mas o foco é na distribuição de serviços, não na proteção de conteúdo ou nos direitos do usuário final.</p>
+  <p>Kustov et al. (2022) propõem o uso de um oráculo DVCS (Data Validation and Certification Server) para garantir a confiabilidade e a certificação dos dados utilizados pelos contratos inteligentes, atuando como uma camada intermediária entre fontes externas e a blockchain. Entretanto, a proposta foca na validação e preservação de informações relacionadas aos direitos autorais, não abordando transferência de posse ou empréstimo de ativos digitais entre usuários.</p>
+  <p>Lucas et al. (2025) apresentam um sistema de pagamento baseado em blockchain integrado via API RESTful. O trabalho confirma a viabilidade técnica de integrar contratos inteligentes com interfaces web convencionais, porém o escopo é pagamentos, não gestão de posse de conteúdo digital.</p>
 
   <figure>
     <table>
       <caption>Tabela 1. Comparativo entre trabalhos relacionados e o DLM-PDF.</caption>
       <thead>
-        <tr><th>Trabalho</th><th class="c">Blockchain</th><th class="c">Revenda P2P</th><th class="c">Empréstimo</th><th class="c">Via navegador</th></tr>
+        <tr><th>Trabalho</th><th class="c">Blockchain</th><th class="c">Acesso via navegador</th><th class="c">Revenda P2P</th><th class="c">Empréstimo</th></tr>
       </thead>
       <tbody>
-        <tr><td>Oliveira e Lazarin (2020)</td><td class="c">Sim</td><td class="c">Não</td><td class="c">Sim</td><td class="c">Não</td></tr>
-        <tr><td>Nair et al. (2005)</td><td class="c">Não</td><td class="c">Sim</td><td class="c">Não</td><td class="c">Não</td></tr>
-        <tr><td>Gaber e Zhang (2010)</td><td class="c">Sim</td><td class="c">Não</td><td class="c">Não</td><td class="c">Não</td></tr>
+        <tr><td>Nair et al. (2005)</td><td class="c">Não</td><td class="c">Não</td><td class="c">Sim</td><td class="c">Não</td></tr>
+        <tr><td>Oliveira e Lazarin (2020)</td><td class="c">Sim</td><td class="c">Não</td><td class="c">Não</td><td class="c">Sim</td></tr>
+        <tr><td>Arya et al. (2020)</td><td class="c">Sim</td><td class="c">Não</td><td class="c">Não</td><td class="c">Não</td></tr>
         <tr><td>Kustov et al. (2022)</td><td class="c">Sim</td><td class="c">Não</td><td class="c">Não</td><td class="c">Não</td></tr>
-        <tr><td>Wang e Hu (2018)</td><td class="c">Sim</td><td class="c">Não</td><td class="c">Não</td><td class="c">Não</td></tr>
-        <tr><td><b>DLM-PDF</b></td><td class="c"><b>Sim</b></td><td class="c"><b>Sim</b></td><td class="c"><b>Sim</b></td><td class="c"><b>Sim</b></td></tr>
+        <tr><td>Lucas et al. (2025)</td><td class="c">Sim</td><td class="c">Sim</td><td class="c">Não</td><td class="c">Não</td></tr>
+        <tr><td><b>DLM-PDF (proposta)</b></td><td class="c"><b>Sim</b></td><td class="c"><b>Sim</b></td><td class="c"><b>Sim</b></td><td class="c"><b>Sim</b></td></tr>
       </tbody>
     </table>
   </figure>
 
-  <p>A análise aponta uma lacuna concreta: nenhum dos trabalhos existentes combina acesso via navegador, blockchain, revenda P2P e empréstimo com revogação automática numa única plataforma implementada e testada.</p>
+  <p>A análise aponta uma lacuna concreta: nenhum dos trabalhos existentes combina blockchain, acesso via navegador, revenda P2P e empréstimo com revogação automática numa única plataforma implementada e testada.</p>
 
   <!-- ============ 4. PROPOSTA ============ -->
   <h2 class="sec">4. Proposta</h2>
-  <p>O DLM-PDF parte de uma premissa simples: o problema não está no arquivo do livro, está em quem pode abri-lo. Se for possível controlar o acesso de forma confiável e descentralizada, o arquivo pode circular livremente sem risco de uso não autorizado. A solução concentra a verificação de direitos num servidor de autenticação central. Quando um usuário tenta abrir um e-book, ele apresenta uma prova de identidade; o servidor consulta o registro de propriedade e libera o acesso só se aquele usuário for o dono do exemplar.</p>
-  <p>O registro de propriedade é imutável e público. A revenda revoga automaticamente o acesso do vendedor e concede ao novo dono, sem intervenção de nenhum administrador. O empréstimo funciona de forma análoga: durante o período combinado, apenas o tomador tem acesso; ao final do prazo, o acesso retorna ao proprietário. Do ponto de vista do usuário, o processo é direto: ele acessa uma página web, seleciona o arquivo e, se o sistema confirmar a posse, o livro abre no próprio navegador, sem instalação. A identidade do usuário é sua carteira digital, uma conta que ele já possui ou pode criar gratuitamente.</p>
+  <p>O DLM-PDF parte de uma premissa simples: o problema não está no arquivo do livro, está em quem pode abri-lo. Se for possível controlar o acesso de forma confiável e auditável, o arquivo pode circular livremente sem risco de uso não autorizado.</p>
+  <p>A solução concentra a verificação de direitos num servidor de autenticação central. Quando um usuário tenta abrir um e-book, ele apresenta ao servidor uma prova de sua identidade. O servidor consulta uma base de dados de propriedades e verifica se aquele usuário é o dono do exemplar solicitado. Se for, o servidor libera o acesso; se não for, o acesso é negado. O arquivo do e-book, por si só, não contém o conteúdo em forma legível: ele só pode ser lido depois que o servidor confirmar a posse.</p>
+  <p>O registro de propriedade é imutável e público. Uma vez que um exemplar é transferido para um comprador, esse registro não pode ser alterado unilateralmente pela plataforma ou pelo usuário. A revenda, do comprador original para um terceiro, revoga automaticamente o acesso do vendedor e concede ao novo dono, sem intervenção de nenhum administrador. O empréstimo funciona de forma análoga: durante o período combinado, apenas o tomador tem acesso; ao final do prazo, o acesso retorna automaticamente ao proprietário.</p>
+  <p>Do ponto de vista do usuário, o processo é direto. Ele acessa uma página web num navegador comum, seleciona o arquivo do e-book no seu computador, e aguarda a verificação. Se o sistema confirmar a posse, o livro abre no próprio navegador. Não há instalação de software. A identidade do usuário é sua carteira digital, uma conta que ele já possui ou pode criar gratuitamente.</p>
+  <p>Diferentemente dos sistemas tradicionais de DRM, que vinculam o acesso a plataformas ou contas específicas, o DLM-PDF permite a transferência e o empréstimo de licenças digitais entre usuários. Em relação aos NFTs convencionais, a proposta associa a autorização de leitura ao registro de titularidade da licença, impedindo que a simples posse do arquivo seja suficiente para acessar o conteúdo. Dessa forma, o modelo busca combinar a rastreabilidade proporcionada pela blockchain com mecanismos de controle de acesso voltados à circulação controlada de e-books.</p>
 
-  <figure>
-    <table>
-      <caption>Tabela 2. DLM-PDF frente ao DRM tradicional e aos NFTs convencionais.</caption>
-      <thead>
-        <tr><th>Característica</th><th class="c">DRM tradicional</th><th class="c">NFT convencional</th><th class="c">DLM-PDF</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Acesso pelo navegador, sem instalar nada</td><td class="c">Não</td><td class="c">Sim</td><td class="c">Sim</td></tr>
-        <tr><td>Revenda entre usuários (P2P)</td><td class="c">Não</td><td class="c">Sim</td><td class="c">Sim</td></tr>
-        <tr><td>Empréstimo com revogação automática</td><td class="c">Não</td><td class="c">Não</td><td class="c">Sim</td></tr>
-        <tr><td>Acesso vinculado à posse do token</td><td class="c">Não</td><td class="c">Não</td><td class="c">Sim</td></tr>
-        <tr><td>Posse real e auditável pelo comprador</td><td class="c">Não</td><td class="c">Sim</td><td class="c">Sim</td></tr>
-      </tbody>
-    </table>
-  </figure>
+  <h3 class="sub">4.1. Implementação</h3>
+  <p>O sistema é composto por quatro camadas que se comunicam por meio de APIs RESTful.</p>
+  <p>A camada inferior é o <b>Smart Contract</b> (<span class="mono">DLMPDFLicense.sol</span>), implantado na rede Ethereum em Solidity 0.8.20. O contrato mantém o registro de titularidade das licenças digitais e disponibiliza funções para consulta, transferência e empréstimo temporário de exemplares. Operações que modificam a titularidade são registradas na blockchain, garantindo rastreabilidade e auditoria das mudanças de posse.</p>
+  <p>A camada intermediária é composta por um <b>servidor de autenticação</b> desenvolvido em Node.js com Express. Diferentemente do contrato inteligente, responsável pelo registro de titularidade, o servidor concentra a autenticação dos usuários, a gestão da cadeia de custódia das licenças e a derivação das chaves criptográficas utilizadas para proteger os arquivos. Dessa forma, a arquitetura adota um modelo híbrido, no qual a blockchain registra a posse das licenças enquanto o controle efetivo de acesso permanece centralizado no servidor.</p>
+  <p>A <b>API DRM</b> disponibiliza três operações principais autenticadas por assinatura criptográfica de carteiras Ethereum. A operação <span class="mono">/encrypt</span> recebe um PDF e gera um arquivo protegido no formato <span class="mono">.dlm</span>. A operação <span class="mono">/decrypt</span> verifica a titularidade da licença e realiza a recuperação do conteúdo para leitura. Já a operação <span class="mono">/transfer</span> atualiza a posse da licença e registra a alteração na cadeia de custódia utilizada pelo sistema.</p>
+  <p>A camada superior é composta pelos <b>clientes web</b> executados diretamente no navegador. A Livraria DLM atua como vitrine para aquisição das licenças digitais, enquanto a DLM-PDF Platform realiza a leitura dos arquivos protegidos. Em ambos os casos, o conteúdo é processado em memória utilizando a biblioteca PDF.js, sem armazenamento persistente do PDF em texto claro no dispositivo do usuário.</p>
 
-  <p>A diferença em relação aos NFTs convencionais merece atenção. Em sistemas NFT típicos, possuir o token não garante controle sobre o acesso ao arquivo: o PDF costuma ser distribuído por link público, completamente desvinculado do token. No DLM-PDF, ativo e autorização de acesso são inseparáveis: a chave só é liberada após o servidor confirmar a titularidade do exemplar no registro de custódia.</p>
-
-  <h3 class="sub">4.1. Arquitetura e implementação</h3>
-  <p>O sistema é composto por quatro camadas que se comunicam por meio de APIs RESTful. O <b>Smart Contract</b> (<span class="mono">DLMPDFLicense.sol</span>, Solidity 0.8.20) armazena, para cada exemplar, o endereço da carteira que detém a posse. A função <span class="mono">checkAccess()</span> verifica a posse sem gas (chamada view); <span class="mono">transferLicense()</span> revoga o acesso do vendedor e concede ao comprador em uma única transação; e <span class="mono">lendLicense()</span> trata o empréstimo, com prazo máximo de 30 dias. Existe ainda <span class="mono">validateAccess()</span>, que grava um evento on-chain para auditoria; quando é usada, quem assina e paga o gas é o oráculo do servidor, nunca o usuário. O <b>Servidor de Autenticação</b> (Node.js com Express) atua como oráculo entre o cliente e a blockchain, operando em três modos: connected, demo e offline. O <b>Cliente Web</b> roda no navegador, e o PDF em texto claro nunca é gravado em disco: ele é renderizado em memória pela biblioteca PDF.js e descartado ao fechar a aba.</p>
-
-  <div class="note"><b>Papel da blockchain.</b> No fluxo de leitura usado em produção (<span class="mono">/decrypt</span> v3), o servidor não chama o contrato a cada abertura: decide o acesso pela cadeia de custódia que mantém no próprio registro, sem gas e sem esperar confirmação de bloco. A blockchain funciona como registro imutável de titularidade e meio de transferência; o controle de acesso da leitura vive no servidor. A contrapartida assumida é que o serviço vira ponto único de falha: se o servidor cair, ninguém abre o livro mesmo com a blockchain disponível.</div>
-
-  <p>Uma camada de serviço, a <b>DLM PDF API</b>, concentra toda a criptografia para garantir que clientes diferentes usem o mesmo esquema de proteção. Ela expõe três métodos autenticados via assinatura MetaMask:</p>
-  <ul>
-    <li><span class="mono">POST /encrypt</span>: recebe o PDF em base64, o endereço, o nome e um identificador do titular (no protótipo, o CPF, usado só como cadastro); gera o <span class="mono">.dlm v3</span> e cria o registro de cadeia de custódia da licença.</li>
-    <li><span class="mono">POST /decrypt</span>: recebe o <span class="mono">.dlm</span>, o endereço e uma assinatura MetaMask com janela de 5 minutos; itera as chaves HKDF candidatas até que o código verificador confirme a chave correta, re-cifra para o dono atual e devolve o PDF.</li>
-    <li><span class="mono">POST /transfer</span>: valida a assinatura do cedente, confere se o destinatário está cadastrado e transfere a posse no registro de custódia.</li>
-  </ul>
-  <p>Quatro vulnerabilidades foram encontradas e corrigidas antes do deploy. A validação do desafio comparava só o nonce, abrindo espaço para replay; passamos a comparar a mensagem integral em <span class="mono">challengeCache</span>. Respostas 401 devolviam o texto da exceção interna, vazando informação. O serviço de encriptação aceitava iniciar sem <span class="mono">MASTER_ENCRYPTION_KEY</span>. E arquivos do fluxo antigo (v1) não abriam no leitor, corrigido ao migrar o publisher para o método <span class="mono">/encrypt</span> v3. Uma revisão posterior apontou ainda um problema de privacidade: o CPF do titular saía completo nas respostas, inclusive no endpoint público <span class="mono">GET /users/:address</span>; passamos a mascará-lo, revelando só os dois dígitos finais (LGPD). O servidor está em produção no Railway.</p>
-
-  <h3 class="sub">4.2. O formato .dlm v3</h3>
-  <p>O arquivo <span class="mono">.dlm v3</span> tem a seguinte estrutura binária:</p>
+  <p>O formato <span class="mono">.dlm</span> encapsula o conteúdo protegido juntamente com os metadados necessários para validação e recuperação da licença:</p>
 <pre>[ MAGIC      4B : "DLM\x03"                              ]
 [ licenseId  8B : uint64 big-endian                       ]
-[ ownerAddr 42B : endereco Ethereum ASCII do cifrador     ]
+[ ownerAddr 42B : endereco Ethereum ASCII do titular      ]
 [ IV        16B : vetor de inicializacao AES-256-CBC      ]
 [ HMAC      32B : HMAC-SHA-256(licId+ownerAddr+IV+cipher) ]
 [ ciphertext NB : AES-256-CBC(verifyCode 4B || pdf NB)   ]</pre>
-  <p>O campo <b>ownerAddr</b> registra diretamente no arquivo qual carteira o cifrou. A chave AES não fica no arquivo: é derivada via HKDF-SHA-256 a partir da chave mestra do servidor, do <span class="mono">licenseId</span> e do endereço do titular, gerando uma chave única por combinação. O <b>código verificador</b>, <span class="mono">SHA256(pdf)[0:4]</span> pré-pendido ao plaintext antes de cifrar, funciona como um dígito verificador: após decifrar, recomputa-se e compara. Se coincidir, a chave era a correta; se não, tenta-se o próximo candidato da cadeia de custódia. Com apenas 4 bytes, ele serve para selecionar a chave certa e confirmar a decifragem, mas não é um mecanismo de proteção criptográfica nem resiste a força bruta. A proteção real vem da chave AES-256 derivada da chave mestra do servidor e do HMAC-SHA-256 de 32 bytes, que garante a integridade: adulterar qualquer byte resulta em falha antes de qualquer tentativa de decriptografia.</p>
+  <p>A chave de cifragem não é armazenada no arquivo. Ela é derivada por HKDF-SHA-256 a partir de uma chave mestra do servidor, do identificador da licença e do endereço Ethereum do titular. O conteúdo é protegido por AES-256-CBC e sua integridade é verificada por HMAC-SHA-256.</p>
+  <p>O campo <span class="mono">verifyCode</span>, correspondente aos quatro primeiros bytes de <span class="mono">SHA256(pdf)</span>, atua como identificador auxiliar durante o processo de recuperação do conteúdo. Após a decifração, o valor é recalculado e comparado ao armazenado no arquivo, permitindo selecionar a chave correta dentre os registros presentes na cadeia de custódia sem expor o conteúdo original.</p>
 
-  <!-- ============ 5. DEMONSTRAÇÃO (VÍDEOS) ============ -->
-  <h2 class="sec">5. Demonstração da Aplicação</h2>
-  <p>O cenário a seguir mostra o sistema em ação: uma editora (conta A) registra um livro e emite um exemplar para um comprador (conta B); um terceiro (conta C) tenta abrir o arquivo sem a licença; por fim, a conta B revende o exemplar para a conta C. O vídeo abaixo registra o fluxo completo de ponta a ponta.</p>
+  <h3 class="sub">4.2. Cenário e Demonstração</h3>
+  <p>O fluxo operacional do DLM-PDF pode ser dividido em duas etapas principais: a emissão de exemplares digitais pelos usuários e o acesso posterior ao conteúdo.</p>
+  <p>A emissão e distribuição de um livro digital começa com o usuário autenticando-se na plataforma por sua carteira digital. Em seguida, ele submete o arquivo PDF original e, quando vai vender ou emprestar, informa o endereço da carteira do comprador que receberá a licença inicial. Com essas informações, o sistema gera um exemplar protegido no formato <span class="mono">.dlm</span>, vinculado ao titular registrado na blockchain.</p>
+  <p>Após a distribuição do exemplar, o acesso ao conteúdo ocorre pela DLM Platform. Tanto usuários legítimos quanto não autorizados passam pelo mesmo processo de autenticação e solicitação de abertura do exemplar; a diferença está na etapa de validação de titularidade. Quando a titularidade da licença é confirmada, o sistema concede acesso ao conteúdo protegido. Caso contrário, a solicitação é rejeitada e o acesso é bloqueado, garantindo que apenas o detentor atual da licença registrada possa visualizar o documento.</p>
 
   <figure class="video-figure">
     <video controls preload="metadata" playsinline>
       <source src="dlm-pdf.mp4" type="video/mp4">
       Seu navegador não reproduz vídeo HTML5. <a href="dlm-pdf.mp4">Baixe o vídeo da demonstração</a>.
     </video>
-    <figcaption><b>Vídeo 1.</b> Demonstração completa do DLM-PDF: do registro do livro à revenda P2P, passando pela abertura do proprietário e pela tentativa de acesso negado.</figcaption>
+    <figcaption><b>Vídeo 1.</b> Demonstração completa do DLM-PDF: emissão do exemplar, abertura pelo titular, tentativa de acesso negado e transferência de posse.</figcaption>
   </figure>
 
-  <p>Ao longo da gravação aparecem as cinco etapas do cenário:</p>
+  <p>O vídeo cobre o fluxo de ponta a ponta:</p>
   <ol class="video-steps">
-    <li><b>Ambiente local e deploy do contrato:</b> subida do nó Hardhat, deploy do <span class="mono">DLMPDFLicense.sol</span> e servidor conectado respondendo no <span class="mono">/health</span>.</li>
-    <li><b>Registro do livro e emissão da licença:</b> a editora registra o título, emite um exemplar para a conta B e encripta o PDF em <span class="mono">.dlm</span>.</li>
-    <li><b>Abertura pelo proprietário:</b> a conta B conecta o MetaMask, assina o desafio e o livro abre renderizado no próprio navegador.</li>
-    <li><b>Acesso negado:</b> a conta C usa o mesmo arquivo, mas a verificação de posse (registro de custódia, ou <span class="mono">checkAccess()</span> sem gas) retorna falso e o sistema exibe a mensagem de acesso negado.</li>
-    <li><b>Revenda P2P:</b> a conta B transfere o exemplar para a conta C; B perde o acesso na hora e C passa a abrir o livro com sucesso.</li>
+    <li><b>Emissão e distribuição:</b> o titular autentica a carteira, submete o PDF e o sistema gera o exemplar protegido em <span class="mono">.dlm</span> vinculado ao dono registrado.</li>
+    <li><b>Abertura pelo titular:</b> o dono atual conecta a carteira, prova a posse e o livro abre renderizado no próprio navegador.</li>
+    <li><b>Acesso negado:</b> um usuário sem a licença passa pelo mesmo fluxo, mas a validação de titularidade falha e a abertura é bloqueada.</li>
+    <li><b>Transferência de posse:</b> a licença é transferida para outra carteira; o antigo dono perde o acesso e o novo passa a abrir o livro.</li>
   </ol>
 
-  <!-- ============ 6. AVALIAÇÃO ============ -->
-  <h2 class="sec">6. Avaliação com Autores</h2>
-  <p>Para entender se o problema que motivou o DLM-PDF é real para quem produz conteúdo, montamos um formulário on-line voltado a autores. Dos sete envios, três eram submissões de teste e foram descartados, restando quatro respostas válidas. É uma amostra pequena, então tratamos os números como indícios qualitativos, não como estatística conclusiva. Ainda assim, o padrão das respostas foi consistente.</p>
-  <p>Dos quatro, três já publicaram. O dado mais direto veio da pergunta sobre pirataria: os quatro já tiveram alguma obra copiada sem autorização. E três dos quatro não sabiam que, no modelo digital atual, o autor não recebe nada quando uma cópia é revendida. É justamente a lacuna que pretendemos fechar com uma comissão automática ao autor, recurso previsto para trabalhos futuros, e que a maioria nem sabia existir.</p>
+  <!-- ============ 5. AVALIAÇÃO ============ -->
+  <h2 class="sec">5. Avaliação Exploratória</h2>
+  <p>Para entender se o problema que motivou o DLM-PDF é real para quem produz conteúdo, montamos um formulário on-line voltado a autores e o divulgamos por contato direto. A versão aplicada foi a <span class="mono">avaliacao_autores</span>, disponível em <a href="https://matheusmerlim1.github.io/DLM-PDF-API/client/avaliacao_autores.html" target="_blank" rel="noopener">matheusmerlim1.github.io/DLM-PDF-API/client/avaliacao_autores.html</a>.</p>
+  <p>O formulário recebeu quatro envios. É uma amostra pequena, então tratamos os números como indícios qualitativos, não como estatística conclusiva. Todos os participantes relataram experiências prévias com cópias não autorizadas de suas obras. Sobre DRM, três conheciam o assunto "parcialmente" e um conhecia bem; ninguém marcou desconhecer.</p>
 
   <figure>
     <table>
-      <caption>Tabela 3. Médias das escalas de 1 a 5 na avaliação com autores (n = 4).</caption>
+      <caption>Tabela 2. Médias das escalas de 1 a 5 na avaliação com autores (n = 4).</caption>
       <thead><tr><th>Item avaliado</th><th class="c">Média (1&ndash;5)</th></tr></thead>
       <tbody>
-        <tr><td>Justo o autor receber comissão na revenda</td><td class="c">4,25</td></tr>
-        <tr><td>Justo o leitor poder revender o e-book</td><td class="c">4,00</td></tr>
-        <tr><td>Confiança em usar blockchain</td><td class="c">3,75</td></tr>
+        <tr><td>Direito de revender exemplares digitais</td><td class="c">4,00</td></tr>
+        <tr><td>Confiança no uso de blockchain</td><td class="c">3,75</td></tr>
         <tr><td>Avaliação geral da proposta</td><td class="c">3,50</td></tr>
-        <tr><td>Utilidade da comissão automática</td><td class="c">3,00</td></tr>
       </tbody>
     </table>
   </figure>
 
-  <p>O apoio mais forte foi ao princípio de que o autor deve receber uma comissão nas revendas (média 4,25). O MetaMask dividiu o grupo ao meio: dois acharam que a carteira seria uma barreira grande, dois não viram problema. Foi o ponto que mais gerou dúvidas quando alguém de fora encostou no sistema pela primeira vez. Apesar das ressalvas, os quatro disseram que usariam o sistema. Um autor resumiu numa frase a dor que o sistema ataca:</p>
-  <blockquote>"Eu não consigo ter uma quantidade de cópias limitadas e perco rastreabilidade e não ganho comissão pela venda."</blockquote>
-  <p>O comentário cobre os três problemas que o DLM-PDF resolve: escassez controlada (cada exemplar é único na blockchain), rastreabilidade (a cadeia de custódia registra cada dono) e comissão na revenda (recurso previsto para trabalhos futuros).</p>
+  <p>O apoio mais forte foi ao princípio de devolver ao leitor o direito de revender (média 4,0), com três notas máximas e uma única discordância. A utilização de blockchain também foi recebida de forma moderadamente positiva (3,75), embora a avaliação geral da proposta tenha permanecido próxima ao ponto neutro da escala (3,5).</p>
+  <p>O MetaMask dividiu o grupo ao meio: dois acharam que a carteira seria uma barreira grande, dois não viram problema nenhum. Essa é a fricção que mais aparece quando alguém de fora encosta no sistema pela primeira vez, sugerindo que mecanismos de autenticação mais transparentes podem ser importantes para reduzir a complexidade percebida.</p>
+  <p>Por fim, os resultados devem ser interpretados como evidências preliminares. Avaliações futuras com amostras maiores, recrutamento mais diversificado e participação de leitores finais são necessárias para analisar a aceitação da plataforma e sua usabilidade em cenários reais de utilização.</p>
+
+  <!-- ============ 6. REPRODUTIBILIDADE ============ -->
+  <h2 class="sec">6. Reprodutibilidade</h2>
+  <p>A API DRM possui documentação interativa disponível em <a href="https://matheusmerlim1.github.io/DLM-PDF-API/index.html" target="_blank" rel="noopener">matheusmerlim1.github.io/DLM-PDF-API/index.html</a>, com endpoints, parâmetros, exemplos de requisição e resposta, além de exemplos de integração com carteiras Ethereum.</p>
+  <p>O código completo do DLM-PDF está disponível publicamente em <a href="https://github.com/matheusmerlim1/DLM-PDF-API" target="_blank" rel="noopener">github.com/matheusmerlim1/DLM-PDF-API</a>. O ambiente de demonstração para revenda e empréstimos está em <a href="https://matheusmerlim1.github.io/trabalho-nilson" target="_blank" rel="noopener">matheusmerlim1.github.io/trabalho-nilson</a>, e o ambiente de demonstração da leitura de livros em <a href="https://matheusmerlim1.github.io/DLM-PDF-encriptador" target="_blank" rel="noopener">matheusmerlim1.github.io/DLM-PDF-encriptador</a>.</p>
 
   <!-- ============ 7. CONCLUSÃO ============ -->
-  <h2 class="sec">7. Conclusão e Trabalho Futuro</h2>
-  <p>O DLM-PDF entrega, na prática, o que o mercado digital prometeu mas nunca cumpriu: um e-book que se comporta como um livro físico. A mudança central é sutil mas significativa: a proteção saiu do arquivo e foi para a autorização de acesso. O arquivo <span class="mono">.dlm</span> pode circular livremente pela internet, porque sem a API DRM confirmar a posse via cadeia de custódia, ele não abre. Isso resolve a tensão tradicional do DRM entre proteção e liberdade.</p>
-  <p>A limitação principal é a dependência do servidor: como as chaves são derivadas nele e é ele que decide o acesso pela cadeia de custódia, sem o serviço no ar ninguém abre o livro, mesmo com a blockchain disponível. É uma centralização assumida, em troca de não cobrar gas do leitor e de tirar a latência de bloco do caminho de abertura, mas deixa o servidor como ponto único de falha. Três recursos ficam como trabalho futuro. O primeiro é a comissão automática ao autor a cada revenda: o sistema hoje registra e transfere a posse, mas ainda não repassa um percentual ao autor no momento da venda, e a avaliação mostrou que essa é a funcionalidade de maior apoio entre os autores. O segundo é a emissão de exemplares: hoje cada cópia precisa ser adicionada uma a uma antes de poder ser transferida, um processo manual e repetitivo; automatizar a emissão em lote, para que a transferência não dependa desse cadastro cópia por cópia, é outro ponto que pretendemos resolver. O terceiro é trocar o CPF, hoje exigido no cadastro, por um identificador genérico e opcional: nenhuma lógica criptográfica depende dele, e exigi-lo esbarra na LGPD, quebra a pseudonimidade da carteira e exclui usuários de fora do Brasil.</p>
-  <p>O sistema está no ar. A API roda no Railway, a Livraria DLM está no GitHub Pages, e qualquer pessoa pode testar o fluxo completo com MetaMask sem instalar nada. A primeira rodada de avaliação, com autores, já apontou o caminho: o problema é real e a proposta convence no princípio, mas a entrada via carteira ainda assusta. O próximo passo é ampliar a avaliação para leitores e um grupo maior.</p>
+  <h2 class="sec">7. Conclusão</h2>
+  <p>O DLM-PDF foi concebido para enfrentar uma limitação recorrente dos sistemas de DRM convencionais: a impossibilidade de reproduzir, no ambiente digital, direitos tradicionalmente associados à posse de livros físicos, como a transferência de propriedade e o empréstimo temporário entre leitores. Os resultados obtidos demonstram que é possível implementar esses mecanismos por meio da combinação de blockchain, contratos inteligentes e controle de acesso criptograficamente vinculado à identidade do usuário.</p>
+  <p>A principal contribuição da proposta consiste em deslocar a proteção do conteúdo para a autorização de acesso. Em vez de restringir a circulação do arquivo digital, o sistema controla a capacidade de leitura com base na comprovação de titularidade registrada em uma cadeia de custódia auditável. O formato <span class="mono">.dlm</span> complementa essa abordagem ao incorporar informações de identificação e validação diretamente no arquivo, reduzindo a dependência de consultas contínuas à blockchain durante o processo de leitura.</p>
+  <p>A implementação realizada demonstrou a viabilidade técnica da arquitetura proposta, contemplando funcionalidades de emissão, validação de propriedade, transferência definitiva de titularidade e empréstimo temporário com revogação automática de acesso.</p>
+  <p>Como limitação, observou-se que a utilização de carteiras blockchain ainda representa uma barreira de adoção para usuários sem familiaridade com tecnologias Web3. Dessa forma, trabalhos futuros podem investigar mecanismos que simplifiquem a experiência de autenticação, bem como ampliar a avaliação empírica da plataforma com um número maior de leitores e autores. Também podem ser exploradas alternativas para acesso offline, escalabilidade da infraestrutura e análises sobre o custo operacional associado às interações com a blockchain.</p>
+  <p>Conclui-se, portanto, que o DLM-PDF representa uma alternativa tecnicamente viável para o gerenciamento de propriedade digital de e-books, aproximando os direitos dos usuários no ambiente digital daqueles tradicionalmente presentes no mercado de livros físicos.</p>
 
   <!-- ============ REFERÊNCIAS ============ -->
   <h2 class="sec">Referências</h2>
   <ol class="refs">
-    <li>Oliveira, H. J. S., &amp; Lazarin, N. M. (2020). Gestão de Direitos Digitais através de Contratos Inteligentes. <i>Revista Brasileira de Informática</i>, 22(3), 155&ndash;173.</li>
-    <li>Nair, S. K. et al. (2005). Enabling DRM-preserving digital content redistribution. In: <i>7th IEEE International Conference on E-Commerce Technology (CEC)</i>. IEEE.</li>
-    <li>Gaber, C., &amp; Zhang, L. (2010). Fair Digital Rights Management with Smart Contracts. <i>IEEE Transactions on Information Forensics and Security</i>.</li>
-    <li>Dashti, M. T. et al. (2007). Formal verification of the Nuovo DRM protocol. In: <i>ESORICS</i>. Springer.</li>
-    <li>Kustov, V. et al. (2022). DVCS Oracle and the task of copyright preservation in blockchain-based technology. IEEE.</li>
-    <li>Wang, Z., &amp; Hu, X. (2018). Blockchain-based certificate storage and validation system. <i>IEEE Access</i>.</li>
-    <li>Arya, V., Sen, S., &amp; Kodeswaran, P. (2020). Blockchain Enabled Trustless API Marketplace. In: <i>COMSNETS</i>. IEEE, 418&ndash;423.</li>
-    <li>Lucas, D. et al. (2025). Design and evaluation of blockchain-enabled payment system using API integration. IEEE.</li>
-    <li>Perzanowski, A., &amp; Schultz, J. (2016). <i>The End of Ownership: Personal Property in the Digital Economy</i>. MIT Press.</li>
-    <li>Daewon, K. (2015). Strong and weak DRM systems: Consumer perception and adoption. <i>Information Systems Research</i>.</li>
-    <li>Rivest, R. L., Shamir, A., &amp; Adleman, L. (1978). A method for obtaining digital signatures and public-key cryptosystems. <i>Communications of the ACM</i>, 21(2), 120&ndash;126.</li>
-    <li>Liebowitz, S. J. (2006). File sharing: Creative destruction or just plain destruction? <i>Journal of Law and Economics</i>, 49(1), 1&ndash;28.</li>
-    <li>Nakamoto, S. (2008). Bitcoin: A peer-to-peer electronic cash system.</li>
-    <li>Buterin, V. (2014). <i>Ethereum: A Next-Generation Smart Contract and Decentralised Application Platform</i>. Ethereum Foundation.</li>
-    <li>Hart, M. S. (1971). Project Gutenberg. Disponível em: gutenberg.org.</li>
-    <li>Association of American Publishers (AAP). (2023). <i>StatShot Annual Report: Full Year 2022 Data</i>.</li>
+    <li>Arya, V.; Sen, S.; Kodeswaran, P. (2020). Blockchain Enabled Trustless API Marketplace. In: <i>2020 12th International Conference on Communication Systems and Networks (COMSNETS)</i>. IEEE, p. 418&ndash;423.</li>
+    <li>Becker, E.; Buhse, W.; Günnewig, D.; Rump, N. (2003). <i>Digital Rights Management: Technological, Economic, Legal and Political Aspects</i>. Berlin: Springer.</li>
+    <li>Buterin, V. (2014). <i>Ethereum: A Next-Generation Smart Contract and Decentralized Application Platform</i>. Ethereum Foundation.</li>
+    <li>Kustov, V. et al. (2022). DVCS Oracle and the Task of Copyright Preservation in Blockchain-Based Technology. IEEE.</li>
+    <li>Liebowitz, S. J. (2006). File Sharing: Creative Destruction or Just Plain Destruction? <i>Journal of Law and Economics</i>, 49(1), 1&ndash;28.</li>
+    <li>Lucas, D. et al. (2025). Design and Evaluation of Blockchain-Enabled Payment System Using API Integration for Enhanced User Experience. IEEE.</li>
+    <li>Nair, S. K. et al. (2005). Enabling DRM-Preserving Digital Content Redistribution. In: <i>7th IEEE International Conference on E-Commerce Technology (CEC)</i>. IEEE.</li>
+    <li>Nakamoto, S. (2008). <i>Bitcoin: A Peer-to-Peer Electronic Cash System</i>.</li>
+    <li>Oliveira, H.; Lazarin, N. (2020). Gestão de Direitos Digitais através de Contratos Inteligentes. In: <i>Anais Estendidos do XXXVIII Simpósio Brasileiro de Redes de Computadores e Sistemas Distribuídos</i>, Rio de Janeiro, p. 225&ndash;232.</li>
+    <li>Perzanowski, A.; Schultz, J. (2016). <i>The End of Ownership: Personal Property in the Digital Economy</i>. Cambridge: MIT Press.</li>
+    <li>Stone, B. (2009). Amazon Erases Orwell Books from Kindle. <i>The New York Times</i>, 17 jul. 2009.</li>
   </ol>
 
 </article>
