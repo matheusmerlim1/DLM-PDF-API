@@ -50,6 +50,7 @@ import {
 import {
   registerUser,
   lookupUser,
+  maskCPF,
 } from "../services/userRegistryService.js";
 import {
   salvarAvaliacao,
@@ -173,7 +174,8 @@ router.get("/users/:address", wrap(async (req, res) => {
   const user = await lookupUser(address);
   if (!user) return res.status(404).json({ error: "Usuário não cadastrado." });
 
-  res.json({ address: user.address, name: user.name, cpf: user.cpf });
+  // CPF mascarado: endpoint público, não pode vazar o documento completo (LGPD).
+  res.json({ address: user.address, name: user.name, cpf: maskCPF(user.cpf) });
 }));
 
 // ═══════════════════════════════════════════════════════════
@@ -328,7 +330,7 @@ router.post("/encrypt", wrap(async (req, res) => {
     size:        dlmBuffer.length,
     version:     3,
     metadata:    metadata ?? null,
-    owner: { address: publicKey.toLowerCase(), name: owner.name, cpf: owner.cpf },
+    owner: { address: publicKey.toLowerCase(), name: owner.name, cpf: maskCPF(owner.cpf) },
   });
 }));
 
@@ -442,8 +444,10 @@ router.post("/transfer/preview", wrap(async (req, res) => {
     });
   }
 
+  // CPF do destinatário mascarado: dado de terceiro, basta os 2 dígitos finais
+  // para o remetente conferir que está transferindo para a pessoa certa.
   res.json({
-    newOwner:     { address: newOwner.address, name: newOwner.name, cpf: newOwner.cpf },
+    newOwner:     { address: newOwner.address, name: newOwner.name, cpf: maskCPF(newOwner.cpf) },
     currentOwner: { address: licenseRecord.currentOwner.address },
     licenseId,
   });
@@ -501,7 +505,7 @@ router.post("/transfer", wrap(async (req, res) => {
   res.json({
     licenseId,
     previousOwner:  { address: fromPublicKey.toLowerCase() },
-    newOwner:       { address: newOwnerUser.address, name: newOwnerUser.name, cpf: newOwnerUser.cpf },
+    newOwner:       { address: newOwnerUser.address, name: newOwnerUser.name, cpf: maskCPF(newOwnerUser.cpf) },
     transferredAt:  new Date().toISOString(),
     note: "O arquivo .dlm será re-cifrado com as chaves do novo dono na próxima chamada a POST /decrypt.",
   });
