@@ -432,6 +432,64 @@
 }
 @media print { #mr-portfolio-btn { display: none; } }
 </style>
+<script>
+/* Se ja existir algum controle embaixo do botao, empurra o conteudo daquela
+   barra para a esquerda, abrindo espaco em vez de cobrir o que estava la. */
+(function () {
+  var btn = document.getElementById('mr-portfolio-btn');
+  if (!btn) return;
+  var CONTROLES = 'a,button,input,select,textarea,summary,[role="button"],[onclick]';
+  var ajustados = [];
+
+  function desfazer() {
+    for (var i = 0; i < ajustados.length; i++) {
+      ajustados[i].el.style.paddingRight = ajustados[i].antes;
+    }
+    ajustados = [];
+  }
+
+  /* sobe ate o elemento que se comporta como barra (ocupa quase toda a largura) */
+  function barra(el) {
+    for (var n = 0; el && n < 8; n++, el = el.parentElement) {
+      if (el === document.body || el === document.documentElement) return null;
+      if (el.getBoundingClientRect().width >= innerWidth * 0.6) return el;
+    }
+    return null;
+  }
+
+  function ajustar() {
+    desfazer();
+    var r = btn.getBoundingClientRect();
+    if (!r.width) return;
+    var reserva = Math.ceil(r.width + 20);
+    var y = Math.round(r.top + r.height / 2);
+    var alvos = [];
+
+    btn.style.visibility = 'hidden';
+    for (var x = Math.floor(r.right); x > r.left - 8; x -= 10) {
+      if (x < 1 || x > innerWidth - 1) continue;
+      var sob = document.elementFromPoint(x, y);
+      if (!sob || !sob.closest) continue;
+      var ctrl = sob.closest(CONTROLES);
+      if (!ctrl) continue;
+      var alvo = barra(ctrl);
+      if (alvo && alvos.indexOf(alvo) < 0) alvos.push(alvo);
+    }
+    btn.style.visibility = '';
+
+    for (var j = 0; j < alvos.length; j++) {
+      var el = alvos[j];
+      if ((parseFloat(getComputedStyle(el).paddingRight) || 0) >= reserva) continue;
+      ajustados.push({ el: el, antes: el.style.paddingRight });
+      el.style.paddingRight = reserva + 'px';
+    }
+  }
+
+  function agendar() { requestAnimationFrame(ajustar); }
+  if (document.readyState === 'complete') agendar(); else addEventListener('load', agendar);
+  addEventListener('resize', agendar);
+})();
+</script>
 <!-- === fim do botao === -->
 </body>
 </html>
